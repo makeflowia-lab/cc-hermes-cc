@@ -37,6 +37,8 @@ interface CommandCenterState {
   setListening: (v: boolean) => void
   lastTranscript: string
   setLastTranscript: (t: string) => void
+  wakeWordEnabled: boolean // escucha manos-libres por palabra de activación
+  toggleWakeWord: () => void
 
   // Briefing (Copiloto)
   briefing: Briefing | null
@@ -49,6 +51,10 @@ interface CommandCenterState {
   setKnowledgeOpen: (open: boolean) => void
   knowledgeCount: { documents: number; chunks: number }
   setKnowledgeCount: (c: { documents: number; chunks: number }) => void
+
+  // Visión (Fase 5, opt-in, off por defecto — privacidad)
+  visionEnabled: boolean
+  toggleVision: () => void
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({
@@ -81,6 +87,8 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   setListening: (listening) => set({ listening }),
   lastTranscript: '',
   setLastTranscript: (lastTranscript) => set({ lastTranscript }),
+  wakeWordEnabled: false,
+  toggleWakeWord: () => set((s) => ({ wakeWordEnabled: !s.wakeWordEnabled })),
 
   briefing: null,
   briefingLoading: false,
@@ -91,4 +99,7 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   setKnowledgeOpen: (knowledgeOpen) => set({ knowledgeOpen }),
   knowledgeCount: { documents: 0, chunks: 0 },
   setKnowledgeCount: (knowledgeCount) => set({ knowledgeCount }),
+
+  visionEnabled: false,
+  toggleVision: () => set((s) => ({ visionEnabled: !s.visionEnabled })),
 }))

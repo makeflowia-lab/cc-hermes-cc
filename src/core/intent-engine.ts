@@ -99,8 +99,10 @@ export async function classifyIntent(userText: string, history: string): Promise
       system: CLASSIFIER_PROMPT,
       prompt: `Conversación reciente:\n${history || '(inicio de conversación)'}\n\nÚltimo mensaje del usuario:\n"${userText}"`,
     })
-    const specialists = (object.specialists.length ? object.specialists : ['director_estrategico']) as SpecialistKey[]
-    return { ...object, specialists: specialists.filter((s) => ALL_SPECIALISTS.includes(s)) }
+    const raw = (object.specialists.length ? object.specialists : ['director_estrategico']) as SpecialistKey[]
+    // De-duplica y valida (el clasificador puede repetir claves).
+    const specialists = Array.from(new Set(raw.filter((s) => ALL_SPECIALISTS.includes(s))))
+    return { ...object, specialists }
   } catch (e) {
     console.error('[intent-engine] fallback:', String(e).slice(0, 120))
     return fallbackIntent(userText)

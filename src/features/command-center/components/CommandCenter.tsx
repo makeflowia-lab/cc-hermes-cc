@@ -17,6 +17,7 @@ import { WidgetGrid } from './WidgetGrid'
 import { BriefingPanel } from './BriefingPanel'
 import { PersonalizationDrawer } from './PersonalizationDrawer'
 import { KnowledgeDrawer } from './KnowledgeDrawer'
+import { VisionPanel } from './VisionPanel'
 
 export function CommandCenter() {
   const hermes = useHermes()
@@ -75,17 +76,35 @@ export function CommandCenter() {
       .finally(() => setBriefingLoading(false))
   }, [setBriefing, setBriefingLoading])
 
+  const mode = useCommandCenter((s) => s.mode)
   const assistantName = personalization?.assistantName ?? 'Hermes'
   const busy = hermes.status === 'submitted' || hermes.status === 'streaming'
   const hasConversation = hermes.messages.length > 0
+
+  // Layout por modo (DOC 04 §13): presentación oculta el rail; war room lo ensancha.
+  const showRail = mode !== 'presentation'
+  const gridCols =
+    mode === 'presentation'
+      ? 'lg:grid-cols-1'
+      : mode === 'war_room'
+        ? 'lg:grid-cols-[1fr_26rem]'
+        : 'lg:grid-cols-[1fr_22rem]'
 
   return (
     <MotionConfig reducedMotion="user">
     <div className="relative flex h-screen flex-col overflow-hidden">
       <AmbientBackground />
+      {/* Modo Crisis: viñeta roja perimetral (DOC 05 §11.3) */}
+      {mode === 'crisis' && (
+        <div
+          className="pointer-events-none fixed inset-0 z-20 animate-pulse"
+          style={{ boxShadow: 'inset 0 0 160px -40px rgba(244,63,94,0.55)' }}
+          aria-hidden="true"
+        />
+      )}
       <StatusBar />
 
-      <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden px-4 pb-4 lg:grid-cols-[1fr_22rem]">
+      <main className={`grid flex-1 grid-cols-1 gap-4 overflow-hidden px-4 pb-4 ${gridCols}`}>
         {/* Columna principal: orbe + conversación + barra de comandos */}
         <section className="flex min-h-0 flex-col">
           <div className="flex flex-1 flex-col items-center justify-center overflow-hidden">
@@ -159,16 +178,19 @@ export function CommandCenter() {
           </div>
         </section>
 
-        {/* Rail derecho: consejo + monitores (oculto en móvil) */}
-        <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto lg:flex">
-          <CouncilIndicator />
-          <WidgetGrid />
-        </aside>
+        {/* Rail derecho: consejo + monitores (oculto en móvil y en modo presentación) */}
+        {showRail && (
+          <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto lg:flex">
+            <CouncilIndicator />
+            <WidgetGrid />
+          </aside>
+        )}
       </main>
 
       <BriefingPanel open={briefingOpen} onClose={closeBriefing} />
       <PersonalizationDrawer />
       <KnowledgeDrawer />
+      <VisionPanel />
     </div>
     </MotionConfig>
   )

@@ -63,6 +63,15 @@ export function buildSystemPrompt(args: {
       ? '\n\nALERTA: situación de urgencia crítica. Prioriza rapidez sobre exhaustividad. Da la recomendación inmediata primero.'
       : ''
 
+  // Módulo 8 — Simulación: "¿qué pasa si…?" → escenarios comparados.
+  const simulationNudge =
+    intent.category === 'simulacion'
+      ? `\n\nMODO SIMULACIÓN: el usuario plantea un "¿qué pasa si…?". Estructura tu respuesta como escenarios:
+- ESCENARIO BASE (situación actual / no actuar): consecuencia probable.
+- ESCENARIO ALTERNATIVO (la jugada planteada): consecuencia probable + impacto estimado (alto/medio/bajo) y probabilidad (cualitativa).
+- Riesgos clave y la RECOMENDACIÓN final (qué escenario conviene y por qué).`
+      : ''
+
   const hasSources = !!ragContext && ragContext.trim().length > 0
   const hasDeliberations = !!councilDeliberations && councilDeliberations.trim().length > 0
 
@@ -83,6 +92,7 @@ export function buildSystemPrompt(args: {
     hasSources ? DATA_NOTE_WITH_SOURCES : DATA_NOTE_NO_SOURCES,
     FORMAT,
     crisisNudge,
+    simulationNudge,
   ]
     .filter(Boolean)
     .join('\n\n')

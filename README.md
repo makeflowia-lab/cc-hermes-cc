@@ -96,11 +96,17 @@ src/
 - **Búsqueda semántica**: cuando la consulta requiere datos, Hermes recupera los fragmentos relevantes y **razona y cita sobre datos reales** (no cifras inventadas).
 - **Centro de Datos UI**: alta/listado/borrado de documentos + conteo indexado; badge "Fuentes consultadas" en las respuestas que usan RAG.
 
-## ⏭️ Qué viene (fases siguientes, por diseño)
+**Fase 3 — Voz operativa:** voz por navegador (STT + TTS) + **wake word "Hermes"** manos-libres (escucha continua, barge-in, se pausa durante respuesta/voz para no auto-escucharse).
 
-Fase 3: voz de baja latencia dedicada (STT/TTS). Fase 4: cluster multi-agente real (cada especialista = servicio).
-Fase 5: **Visión por computadora**, multipantalla / War Room físico, multi-tenant completo.
-Fase 2+: conectores en vivo (redes/noticias/encuestas), OCR/PDF/DOCX para el Centro de Datos.
+**Fase 4 — Consejo multi-agente REAL:** en consultas profundas, los especialistas relevantes **deliberan en paralelo** (modelo rápido) y el **Coordinador (Opus 4.1) sintetiza** una sola respuesta; badge "Consejo: N especialistas". **Simulación de escenarios** (Módulo 8): "¿qué pasa si…?" → escenario base vs alternativo + impacto/probabilidad.
+
+**Fase 5 — War Room + Visión:** modos **War Room / Crisis (viñeta roja) / Presentación** que reconfiguran el layout y el comportamiento del cerebro; **Visión opt-in** (cámara local + FaceDetector para presencia, apagada por defecto, con aviso de privacidad).
+
+## ⏭️ Escalamientos de producción (no fases nuevas)
+
+Las 5 fases del roadmap están entregadas. Lo que sigue es robustecer: STT/TTS dedicados de baja latencia,
+cluster de agentes como microservicios, multipantalla física / multi-tenant completo, conectores de datos
+en vivo (redes/noticias/encuestas) y OCR/PDF/DOCX para el Centro de Datos.
 
 Ver [`docs/`](./docs) para el blueprint completo (visión, arquitectura, roadmap).
 

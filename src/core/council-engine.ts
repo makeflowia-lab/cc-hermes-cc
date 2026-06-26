@@ -26,9 +26,11 @@ export async function deliberate(args: {
   const { intent, userText, history, ragContext, tenant } = args
 
   // El Director Estratégico es el coordinador (sintetiza), no delibera como par.
-  const specialists = intent.specialists
-    .filter((k) => k !== 'director_estrategico')
-    .slice(0, MAX_DELIBERATORS)
+  // De-duplica: el clasificador puede repetir un especialista; no debe deliberar dos veces.
+  const specialists = Array.from(new Set(intent.specialists.filter((k) => k !== 'director_estrategico'))).slice(
+    0,
+    MAX_DELIBERATORS,
+  )
   if (specialists.length === 0) return []
 
   const sourcesBlock = ragContext ? `\n\nFUENTES DISPONIBLES:\n${ragContext}` : ''

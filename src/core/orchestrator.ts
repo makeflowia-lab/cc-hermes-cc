@@ -38,12 +38,11 @@ export async function orchestrate(args: {
   // 1) Intent Engine — qué quiere y qué especialistas activar.
   const intent = await classifyIntent(userText, history)
 
-  // 2) Context Engine — personalización + memoria.
-  const contextBlock = await buildContextBlock(tenant, mode)
-
-  // 3) RAG — si la intención requiere datos, recupera de la base de conocimiento (Fase 2).
-  const ragContext =
-    intent.needsData && tenant.id ? await buildRagContext(tenant.id, userText) : ''
+  // 2-3) Context Engine + RAG en paralelo (son independientes — ahorra latencia).
+  const [contextBlock, ragContext] = await Promise.all([
+    buildContextBlock(tenant, mode),
+    intent.needsData && tenant.id ? buildRagContext(tenant.id, userText) : Promise.resolve(''),
+  ])
 
   // 4) Routing de modelo: el MEJOR modelo (Opus 4.1) para lo estratégico; Sonnet para lo trivial.
   const useDeep = DEEP_CATEGORIES.has(intent.category) || intent.depth === 'deep' || intent.urgency === 'critical'

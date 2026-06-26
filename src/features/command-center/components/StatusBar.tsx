@@ -1,6 +1,6 @@
 'use client'
 
-import { Volume2, VolumeX, Settings, Cpu, ShieldAlert, Presentation, LayoutGrid, Activity, Database } from 'lucide-react'
+import { Volume2, VolumeX, Settings, Cpu, ShieldAlert, Presentation, LayoutGrid, Activity, Database, Ear, Camera } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
 import type { Mode } from '../types'
 import { cn } from '@/lib/utils'
@@ -23,6 +23,10 @@ export function StatusBar() {
     setPersonalizationOpen,
     setKnowledgeOpen,
     knowledgeCount,
+    wakeWordEnabled,
+    toggleWakeWord,
+    visionEnabled,
+    toggleVision,
   } = useCommandCenter()
 
   const name = personalization?.assistantName ?? 'Hermes'
@@ -50,10 +54,10 @@ export function StatusBar() {
             key={m.key}
             type="button"
             onClick={() => setMode(m.key)}
-            aria-pressed={mode === m.key ? 'true' : 'false'}
+            aria-pressed={mode === m.key}
             aria-label={`Modo ${m.label}`}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition',
+              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
               mode === m.key ? 'bg-white/10 text-white shadow-glow' : 'text-slate-400 hover:text-slate-200',
             )}
             title={`Modo ${m.label}`}
@@ -72,7 +76,7 @@ export function StatusBar() {
         <button
           type="button"
           onClick={() => setKnowledgeOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg glass px-2.5 py-1.5 text-[11px] text-slate-300 transition hover:bg-white/10"
+          className="flex items-center gap-1.5 rounded-lg glass px-2.5 py-1.5 text-[11px] text-slate-300 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           title="Centro de Datos (base de conocimiento RAG)"
           aria-label="Abrir Centro de Datos"
         >
@@ -86,17 +90,44 @@ export function StatusBar() {
         </button>
         <button
           type="button"
+          onClick={toggleVision}
+          aria-pressed={visionEnabled}
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            visionEnabled && 'glass-accent',
+          )}
+          title={visionEnabled ? 'Visión activa (cámara)' : 'Activar visión (opt-in, cámara local)'}
+          aria-label="Visión por cámara (opt-in)"
+        >
+          <Camera className={cn('h-4 w-4', visionEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={toggleWakeWord}
+          aria-pressed={wakeWordEnabled}
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            wakeWordEnabled && 'glass-accent',
+          )}
+          title={wakeWordEnabled ? 'Manos libres activo — di "Hermes"' : 'Activar manos libres (di "Hermes")'}
+          aria-label='Manos libres por voz (di "Hermes")'
+        >
+          <Ear className={cn('h-4 w-4', wakeWordEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           onClick={toggleVoiceOutput}
-          className="flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10"
+          aria-pressed={voiceOutput}
+          className="flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           title={voiceOutput ? 'Voz activada' : 'Voz silenciada'}
-          aria-label={voiceOutput ? 'Silenciar voz de Hermes' : 'Activar voz de Hermes'}
+          aria-label="Voz de Hermes (leer respuestas)"
         >
           {voiceOutput ? <Volume2 className="h-4 w-4 accent" /> : <VolumeX className="h-4 w-4 text-slate-500" />}
         </button>
         <button
           type="button"
           onClick={() => setPersonalizationOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10"
+          className="flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           title="Personalización"
           aria-label="Abrir personalización"
         >

@@ -5,6 +5,7 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, type UIMessage } from 'ai'
 import { useCommandCenter } from '../store/command-center-store'
 import { useVoice } from './useVoice'
+import { useWakeWord } from './useWakeWord'
 import type { HermesMeta, HermesState } from '../types'
 
 export type HermesUIMessage = UIMessage<HermesMeta>
@@ -22,6 +23,7 @@ export function useHermes() {
   const setConversationId = useCommandCenter((s) => s.setConversationId)
   const setListening = useCommandCenter((s) => s.setListening)
   const setLastTranscript = useCommandCenter((s) => s.setLastTranscript)
+  const wakeWordEnabled = useCommandCenter((s) => s.wakeWordEnabled)
 
   const speakRef = useRef<(t: string) => void>(() => {})
   const askRef = useRef<(t: string) => void>(() => {})
@@ -78,6 +80,17 @@ export function useHermes() {
     voice.stopListening()
     setListening(false)
   }, [voice, setListening])
+
+  // Voz manos-libres: al oír "Hermes", abre la captura de comando.
+  // Se pausa durante TODO el ciclo ocupado (captura, petición en vuelo y TTS) para evitar
+  // que el reconocedor de wake word parpadee o escuche la propia voz de Hermes.
+  const busyForWake =
+    voice.listening || voice.speaking || chat.status === 'submitted' || chat.status === 'streaming'
+  useWakeWord({
+    enabled: wakeWordEnabled,
+    paused: busyForWake,
+    onWake: startListening,
+  })
 
   const hermesState: HermesState = voice.listening
     ? 'listening'
