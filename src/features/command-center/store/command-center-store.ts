@@ -1,0 +1,94 @@
+'use client'
+
+import { create } from 'zustand'
+import type { Mode, SpecialistKey, Tenant, Briefing } from '../types'
+
+interface CommandCenterState {
+  // Modo operativo del centro de mando
+  mode: Mode
+  setMode: (m: Mode) => void
+
+  // Personalización (white-label)
+  personalization: Tenant | null
+  setPersonalization: (t: Tenant) => void
+  personalizationOpen: boolean
+  setPersonalizationOpen: (open: boolean) => void
+
+  // Conversación
+  conversationId: string | null
+  setConversationId: (id: string | null) => void
+
+  // Consejo Estratégico activado en la última respuesta
+  activeSpecialists: SpecialistKey[]
+  lastIntent: string | null
+  lastUrgency: string | null
+  lastModel: string | null
+  setCouncil: (data: {
+    intent?: string
+    urgency?: string
+    specialists?: SpecialistKey[]
+    model?: string
+  }) => void
+
+  // Voz
+  voiceOutput: boolean // TTS — Hermes habla
+  toggleVoiceOutput: () => void
+  listening: boolean // micrófono activo
+  setListening: (v: boolean) => void
+  lastTranscript: string
+  setLastTranscript: (t: string) => void
+
+  // Briefing (Copiloto)
+  briefing: Briefing | null
+  briefingLoading: boolean
+  setBriefing: (b: Briefing | null) => void
+  setBriefingLoading: (v: boolean) => void
+
+  // Centro de Datos (RAG / Fase 2)
+  knowledgeOpen: boolean
+  setKnowledgeOpen: (open: boolean) => void
+  knowledgeCount: { documents: number; chunks: number }
+  setKnowledgeCount: (c: { documents: number; chunks: number }) => void
+}
+
+export const useCommandCenter = create<CommandCenterState>((set) => ({
+  mode: 'normal',
+  setMode: (mode) => set({ mode }),
+
+  personalization: null,
+  setPersonalization: (personalization) => set({ personalization }),
+  personalizationOpen: false,
+  setPersonalizationOpen: (personalizationOpen) => set({ personalizationOpen }),
+
+  conversationId: null,
+  setConversationId: (conversationId) => set({ conversationId }),
+
+  activeSpecialists: [],
+  lastIntent: null,
+  lastUrgency: null,
+  lastModel: null,
+  setCouncil: ({ intent, urgency, specialists, model }) =>
+    set({
+      lastIntent: intent ?? null,
+      lastUrgency: urgency ?? null,
+      activeSpecialists: specialists ?? [],
+      lastModel: model ?? null,
+    }),
+
+  voiceOutput: true,
+  toggleVoiceOutput: () => set((s) => ({ voiceOutput: !s.voiceOutput })),
+  listening: false,
+  setListening: (listening) => set({ listening }),
+  lastTranscript: '',
+  setLastTranscript: (lastTranscript) => set({ lastTranscript }),
+
+  briefing: null,
+  briefingLoading: false,
+  setBriefing: (briefing) => set({ briefing }),
+  setBriefingLoading: (briefingLoading) => set({ briefingLoading }),
+
+  knowledgeOpen: false,
+  setKnowledgeOpen: (knowledgeOpen) => set({ knowledgeOpen }),
+  knowledgeCount: { documents: 0, chunks: 0 },
+  setKnowledgeCount: (knowledgeCount) => set({ knowledgeCount }),
+}))
