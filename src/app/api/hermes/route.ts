@@ -115,6 +115,7 @@ export async function POST(req: Request) {
           specialists: plan.intent.specialists,
           model: plan.modelKey,
           usedSources: plan.usedSources,
+          usedWeb: plan.usedWeb,
           councilSize: plan.councilSize,
         }
       }

@@ -23,6 +23,8 @@ export const MODELS = {
   // Salida estructurada (json_schema). Los modelos Anthropic NO la soportan vía OpenRouter,
   // así que para generateObject usamos Gemini Pro como respaldo confiable.
   structured: 'google/gemini-2.5-pro',
+  // Tiempo real: Perplexity Sonar busca en la web y responde con datos ACTUALES + fuentes (DOC Módulo 4).
+  realtime: 'perplexity/sonar',
   vision: 'google/gemini-2.5-flash', // preparado para Fase 5 (visión)
 } as const
 

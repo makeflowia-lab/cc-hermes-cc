@@ -37,6 +37,7 @@ export interface Intent {
   topics: string[]
   specialists: SpecialistKey[]
   needsData: boolean
+  needsWeb: boolean
   summary: string
 }
 

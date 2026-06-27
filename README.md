@@ -96,10 +96,14 @@ src/
   GPU, ondas de energía que viajan del núcleo hacia afuera, ráfagas, sinapsis y regiones etiquetadas mapeadas
   al Consejo. **Reacciona cuando le pides algo**: se encienden las regiones/especialistas que consulta
   ("buscando…") y dispara una ráfaga al encontrar. Nunca estático (reduce-motion lo calma, no lo congela).
-- **Activación por 2 APLAUSOS** (Web Audio) o tap: el sistema arranca en **standby (solo el cerebro)**; al
-  **aplaudir dos veces** Hermes **enciende** el cerebro (ráfaga), **saluda por voz según la hora**
-  ("Buenos días/tardes/noches, ¿en qué podemos ayudarte?") y empieza a escuchar. Voz-primero: sin barra de
-  entrada ni textos en pantalla; los controles solo aparecen al mover el mouse.
+- **Activación por 2 APLAUSOS** (Web Audio) o tap: arranca en **standby (solo el cerebro)**; al **aplaudir
+  dos veces** Hermes **enciende** el cerebro (ráfaga), **saluda por voz según la hora** ("Buenos días/
+  tardes/noches, ¿en qué podemos ayudarte?") y entra en **modo escucha continua**: pides una cosa tras otra
+  sin volver a aplaudir; **dices "ok" y vuelve a standby**. Voz-primero: sin barra ni textos; los controles
+  solo aparecen al mover el mouse.
+- **Información en TIEMPO REAL**: cuando preguntas por algo actual (noticias de hoy, eventos en curso,
+  últimas declaraciones), Hermes usa **Perplexity Sonar** (vía OpenRouter) para buscar en la web y responde
+  con datos del momento + fuentes; badge "Tiempo real · web". (DOC Módulo 4.)
 
 **Fase 2 — Datos + RAG (Centro de Datos):**
 - **Ingesta de documentos** — pegar texto o **subir PDF / Word (.docx) / Excel (.xlsx) / CSV / TXT** (Módulo 6); el servidor extrae el texto (pdfjs / mammoth / xlsx) → chunking → **embeddings** (`text-embedding-3-small`, 1536) → **pgvector** (índice HNSW).

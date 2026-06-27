@@ -5,7 +5,7 @@
 import { MODELS } from '@/lib/ai/openrouter'
 import { classifyIntent } from './intent-engine'
 import { buildContextBlock, buildRagContext } from './context-engine'
-import { buildSystemPrompt } from './response-engine'
+import { buildSystemPrompt, buildWebSystemPrompt } from './response-engine'
 import { deliberate, formatDeliberations } from './council-engine'
 import type { Intent, Mode, Tenant } from './types'
 
@@ -13,8 +13,9 @@ export interface OrchestrationPlan {
   intent: Intent
   system: string
   model: string
-  modelKey: 'balanced' | 'powerful'
+  modelKey: 'balanced' | 'powerful' | 'realtime'
   usedSources: boolean
+  usedWeb: boolean
   councilSize: number // nº de especialistas que deliberaron (0 = síntesis directa)
 }
 
@@ -37,6 +38,19 @@ export async function orchestrate(args: {
 
   // 1) Intent Engine — qué quiere y qué especialistas activar.
   const intent = await classifyIntent(userText, history)
+
+  // TIEMPO REAL: si pide info actual/de la web → Perplexity Sonar (busca en vivo + cita fuentes).
+  if (intent.needsWeb) {
+    return {
+      intent,
+      system: buildWebSystemPrompt(tenant),
+      model: MODELS.realtime,
+      modelKey: 'realtime',
+      usedSources: false,
+      usedWeb: true,
+      councilSize: 0,
+    }
+  }
 
   // 2-3) Context Engine + RAG en paralelo (son independientes — ahorra latencia).
   const [contextBlock, ragContext] = await Promise.all([
@@ -65,6 +79,7 @@ export async function orchestrate(args: {
     model: MODELS[modelKey],
     modelKey,
     usedSources: ragContext.length > 0,
+    usedWeb: false,
     councilSize: deliberations.length,
   }
 }

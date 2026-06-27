@@ -20,6 +20,19 @@ export function textOf(message: { parts?: UIMessage['parts'] }): string {
     .join('')
 }
 
+// Palabra para SALIR del modo escucha continua → vuelve a standby (activar con 2 aplausos).
+function isStopWord(text: string): boolean {
+  const n = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^\w\s]/g, '')
+    .trim()
+  const tokens = n.split(/\s+/).filter(Boolean)
+  if (tokens.length === 0 || tokens.length > 3) return false
+  return tokens.some((w) => ['ok', 'okay', 'okey', 'oka', 'listo'].includes(w))
+}
+
 export function useHermes() {
   const setCouncil = useCommandCenter((s) => s.setCouncil)
   const setConversationId = useCommandCenter((s) => s.setConversationId)
@@ -28,8 +41,10 @@ export function useHermes() {
   const wakeWordEnabled = useCommandCenter((s) => s.wakeWordEnabled)
   const clapEnabled = useCommandCenter((s) => s.clapEnabled)
 
-  const speakRef = useRef<(t: string) => void>(() => {})
+  const speakRef = useRef<(t: string, onEnd?: () => void) => void>(() => {})
   const askRef = useRef<(t: string) => void>(() => {})
+  const resumeRef = useRef<() => void>(() => {})
+  const deactivateRef = useRef<() => void>(() => {})
 
   const transport = useMemo(
     () => new DefaultChatTransport<HermesUIMessage>({ api: '/api/hermes' }),
@@ -50,14 +65,25 @@ export function useHermes() {
         if (meta.conversationId) setConversationId(meta.conversationId)
       }
       const text = textOf(message)
-      if (useCommandCenter.getState().voiceOutput && text) speakRef.current(text)
+      // Tras responder: si la voz está activa, habla y AL TERMINAR vuelve a escuchar (bucle continuo).
+      if (useCommandCenter.getState().voiceOutput && text) speakRef.current(text, () => resumeRef.current())
+      else resumeRef.current()
     },
   })
 
   const voice = useVoice({
     onFinalTranscript: (t) => {
       setLastTranscript(t)
+      // "ok" → salir del modo escucha; cualquier otra cosa → procesar.
+      if (isStopWord(t)) {
+        deactivateRef.current()
+        return
+      }
       askRef.current(t)
+    },
+    onListenEnd: (hadSpeech) => {
+      // Silencio en modo activo → reabre el micrófono (escucha continua hasta decir "ok").
+      if (!hadSpeech) resumeRef.current()
     },
   })
   speakRef.current = voice.speak
@@ -118,7 +144,8 @@ export function useHermes() {
             s.setImmersive(false)
             break
         }
-        if (s.voiceOutput) speakRef.current(routed.ack)
+        if (s.voiceOutput) speakRef.current(routed.ack, () => resumeRef.current())
+        else resumeRef.current()
         return
       }
 
@@ -140,17 +167,43 @@ export function useHermes() {
     setListening(false)
   }, [voice, setListening])
 
-  // Ignición: "se inicia con 2 aplausos" (o clic). Despierta, SALUDA según la hora y escucha.
+  // Reabre el micrófono si seguimos en sesión (modo escucha continua), tras responder o tras silencio.
+  const resumeListen = useCallback(() => {
+    setTimeout(() => {
+      const st = useCommandCenter.getState()
+      if (st.awake && !st.listening) startListening()
+    }, 350)
+  }, [startListening])
+  resumeRef.current = resumeListen
+
+  // "ok" → cancela el modo escucha y vuelve a standby (activar con 2 aplausos).
+  const deactivate = useCallback(() => {
+    const s = useCommandCenter.getState()
+    s.setAwake(false)
+    s.setGreeting('')
+    stopListening()
+    if (s.voiceOutput) speakRef.current('Hasta pronto.')
+  }, [stopListening])
+  deactivateRef.current = deactivate
+
+  // Ignición: "se inicia con 2 aplausos" (o clic). Despierta, SALUDA según la hora y LUEGO escucha.
   const activate = useCallback(() => {
     const s = useCommandCenter.getState()
     const wasAwake = s.awake
     s.setAwake(true)
-    if (!wasAwake) {
+    if (!wasAwake && s.voiceOutput) {
       const h = new Date().getHours()
       const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
       const greeting = `${saludo}. ¿En qué podemos ayudarte?`
       s.setGreeting(greeting)
-      if (s.voiceOutput) speakRef.current(greeting)
+      // Saluda y SOLO al terminar empieza a escuchar (startListening cancelaría el saludo si fuera antes).
+      speakRef.current(greeting, () => startListening())
+      return
+    }
+    if (!wasAwake) {
+      const h = new Date().getHours()
+      const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
+      s.setGreeting(`${saludo}. ¿En qué podemos ayudarte?`)
     }
     if (!voice.listening) startListening()
   }, [voice.listening, startListening])
@@ -189,6 +242,7 @@ export function useHermes() {
     stop: chat.stop,
     ask,
     activate,
+    deactivate,
     hermesState,
     voice,
     startListening,

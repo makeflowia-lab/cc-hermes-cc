@@ -43,7 +43,12 @@ const IntentSchema = z.object({
       ]),
     )
     .describe('Especialistas del Consejo Estratégico que deben contribuir a esta respuesta'),
-  needsData: z.boolean().describe('¿Requiere datos externos/RAG para responder bien?'),
+  needsData: z.boolean().describe('¿Requiere datos internos/documentos (RAG) para responder bien?'),
+  needsWeb: z
+    .boolean()
+    .describe(
+      '¿Requiere información EN TIEMPO REAL de la web? (noticias de hoy, eventos actuales, declaraciones recientes, últimas encuestas, qué está pasando, precios/datos vivos, "busca en internet")',
+    ),
   summary: z.string().describe('Resumen en una frase de lo que el usuario realmente necesita'),
 })
 
@@ -58,6 +63,9 @@ Reglas de routing:
 - ataque/rumor/anomalía/urgente → crisis (incluye crisis, opinion_publica, comunicologo), urgency alta
 - "activa modo war room / mueve X al monitor Y" → accion_operativa
 - comparar contrincante / antecedentes → exploracion (incluye investigador)
+needsWeb=true cuando pidan info ACTUAL/del momento: noticias de hoy, qué está pasando, declaraciones
+recientes, últimas encuestas, eventos en curso, "busca en internet/web", datos en vivo. Si es razonamiento
+estratégico general o sobre documentos internos, needsWeb=false.
 Responde solo con el objeto estructurado.`
 
 /** Heurística de respaldo si el modelo de clasificación falla. */
@@ -66,6 +74,7 @@ function fallbackIntent(text: string): Intent {
   const isCrisis = /(crisis|ataque|ataquen|rumor|urgente|escándalo|escandalo|filtraci)/.test(t)
   const isBriefing = /(qué debo hacer|que debo hacer|informe|resumen del día|resumen del dia|cómo amanec|como amanec|buenos días|buenos dias)/.test(t)
   const isSim = /(qué pasa si|que pasa si|simula|escenario)/.test(t)
+  const isWeb = /(noticias?|hoy|actual|últimas?|ultimas?|qué está pasando|que esta pasando|busca en internet|en la web|reciente|ahora mismo)/.test(t)
   const category: Intent['category'] = isCrisis
     ? 'crisis'
     : isBriefing
@@ -87,6 +96,7 @@ function fallbackIntent(text: string): Intent {
     topics: [],
     specialists,
     needsData: false,
+    needsWeb: isWeb,
     summary: text.slice(0, 140),
   }
 }

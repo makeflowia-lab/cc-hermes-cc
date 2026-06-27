@@ -48,6 +48,11 @@ export function ConversationStream({ messages, processing, assistantName }: Prop
                         Consejo: {m.metadata.councilSize} especialistas
                       </span>
                     )}
+                    {m.metadata?.usedWeb && (
+                      <span className="rounded-full border border-state-normal/40 px-1.5 text-[9px] uppercase tracking-wider text-state-normal">
+                        Tiempo real · web
+                      </span>
+                    )}
                     {m.metadata?.usedSources && (
                       <span className="rounded-full border border-state-info/30 px-1.5 text-[9px] uppercase tracking-wider text-state-info">
                         Fuentes consultadas

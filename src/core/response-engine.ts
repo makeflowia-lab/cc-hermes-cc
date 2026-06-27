@@ -50,6 +50,17 @@ de tus especialistas que ya analizaron este caso en paralelo. Tu trabajo:
 - Resuelve contradicciones entre especialistas y prioriza lo más importante AHORA.
 - El usuario nunca ve este proceso; solo recibe tu síntesis ejecutiva con recomendación clara.`
 
+/** System prompt para el modo TIEMPO REAL (Perplexity Sonar): web en vivo, conciso, voz de Hermes. */
+export function buildWebSystemPrompt(tenant: Tenant): string {
+  return [
+    `Eres ${tenant.assistantName}, asesor estratégico de inteligencia política (${tenant.country}, ${tenant.locale}).`,
+    'Tienes acceso a INFORMACIÓN EN TIEMPO REAL de la web. Responde con datos ACTUALES y verificables.',
+    'Cita las fuentes y la fecha cuando sea relevante.',
+    'No te quedes en el dato: cierra con INTERPRETACIÓN estratégica + RECOMENDACIÓN accionable (Regla del Presidente).',
+    'Español es-MX, directo y ejecutivo (la respuesta puede leerse en voz alta).',
+  ].join('\n')
+}
+
 export function buildSystemPrompt(args: {
   tenant: Tenant
   intent: Intent

@@ -27,7 +27,8 @@ export interface HermesMeta {
   intent?: string
   urgency?: 'low' | 'medium' | 'high' | 'critical'
   specialists?: SpecialistKey[]
-  model?: 'balanced' | 'powerful'
+  model?: 'balanced' | 'powerful' | 'realtime'
   usedSources?: boolean
+  usedWeb?: boolean
   councilSize?: number
 }

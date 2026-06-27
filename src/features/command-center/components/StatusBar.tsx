@@ -71,7 +71,13 @@ export function StatusBar() {
       <div className="flex items-center gap-2">
         <span className="hidden items-center gap-1.5 rounded-full glass px-3 py-1.5 text-[11px] text-slate-400 sm:flex">
           <Cpu className="h-3.5 w-3.5 accent" />
-          {lastModel === 'powerful' ? 'Opus 4.1' : lastModel === 'balanced' ? 'Sonnet 4.5' : 'Consejo IA'}
+          {lastModel === 'powerful'
+            ? 'Opus 4.1'
+            : lastModel === 'balanced'
+              ? 'Sonnet 4.5'
+              : lastModel === 'realtime'
+                ? 'Sonar · web'
+                : 'Consejo IA'}
         </span>
         <button
           type="button"
