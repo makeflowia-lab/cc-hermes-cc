@@ -1,6 +1,6 @@
 'use client'
 
-import { RefObject, useEffect } from 'react'
+import { RefObject, useEffect, useRef } from 'react'
 
 /**
  * Accesibilidad para diálogos/drawers: Escape para cerrar, foco inicial dentro del contenedor,
@@ -11,6 +11,11 @@ export function useModalA11y(
   onClose: () => void,
   ref: RefObject<HTMLElement | null>,
 ) {
+  // onClose suele venir como función nueva en cada render; usar un ref evita que el efecto
+  // se reejecute (y robe el foco al primer control) cada vez que el usuario teclea.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -31,7 +36,7 @@ export function useModalA11y(
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
@@ -55,5 +60,6 @@ export function useModalA11y(
       document.removeEventListener('keydown', onKey)
       previouslyFocused?.focus?.()
     }
-  }, [open, onClose, ref])
+    // Solo depende de `open`: el foco inicial se coloca una vez al abrir, no en cada tecla.
+  }, [open, ref])
 }

@@ -204,17 +204,25 @@ export function PersonalizationDrawer() {
                 <input
                   className={field}
                   value={operatorName}
-                  onChange={(e) => setOperatorName(e.target.value)}
+                  onChange={(e) => setOperatorName(e.target.value.slice(0, 30))}
+                  maxLength={30}
                   placeholder="Ej. Ricardo"
                 />
               </label>
 
               <label className="block">
                 <span className="mb-1 block text-xs text-slate-400">Cámara (gestos y rostro)</span>
-                <select className={field} value={cameraId} onChange={(e) => setCameraId(e.target.value)}>
-                  <option value="">Predeterminada del navegador</option>
+                <select
+                  className={field}
+                  style={{ colorScheme: 'dark' }}
+                  value={cameraId}
+                  onChange={(e) => setCameraId(e.target.value)}
+                >
+                  <option value="" className="bg-slate-900 text-slate-100">
+                    Predeterminada del navegador
+                  </option>
                   {cameras.map((c, i) => (
-                    <option key={c.deviceId || i} value={c.deviceId}>
+                    <option key={c.deviceId || i} value={c.deviceId} className="bg-slate-900 text-slate-100">
                       {c.label || `Cámara ${i + 1}`}
                     </option>
                   ))}
