@@ -21,14 +21,35 @@ const ACTIVITY_BY_STATE: Record<HermesState, number> = {
   responding: 0.82,
 }
 
+export type BrainVariant = 'aurora' | 'jarvis' | 'plasma' | 'matrix' | 'gold'
+
+// Paletas por variante. 'aurora' = null → usa los colores por región (arcoíris original).
+const VARIANT_PALETTES: Record<BrainVariant, number[] | null> = {
+  aurora: null,
+  jarvis: [0x22d3ee, 0x38bdf8, 0x67e8f9, 0x0ea5e9, 0x7dd3fc], // cian monocromo (Jarvis clásico)
+  plasma: [0xa855f7, 0xd946ef, 0xf472b6, 0x8b5cf6, 0xec4899], // violeta/magenta (nebulosa)
+  matrix: [0x22c55e, 0x4ade80, 0x16a34a, 0x86efac, 0x34d399], // verde
+  gold: [0xfbbf24, 0xf59e0b, 0xfcd34d, 0xeab308, 0xfde68a], // oro/ámbar
+}
+
+const VARIANT_CORE: Record<BrainVariant, number> = {
+  aurora: 0xeaf6ff,
+  jarvis: 0xbdf0ff,
+  plasma: 0xf5d0ff,
+  matrix: 0xc8ffd6,
+  gold: 0xfff0c8,
+}
+
 export function NeuralBrain({
   state,
   activeRegions,
   className,
+  variant = 'aurora',
 }: {
   state: HermesState
   activeRegions?: number[]
   className?: string
+  variant?: BrainVariant
 }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const activityTargetRef = useRef(ACTIVITY_BY_STATE.idle)
@@ -102,6 +123,11 @@ export function NeuralBrain({
     const regionAttr = new Float32Array(COUNT)
     const color = new THREE.Color()
 
+    // Color de cada partícula/sinapsis según la variante elegida (aurora = color por región).
+    const palette = VARIANT_PALETTES[variant] ?? null
+    const hexForRegion = (region: number) =>
+      palette ? palette[region % palette.length] : BRAIN_REGIONS[region].hex
+
     for (let i = 0; i < COUNT; i++) {
       const u = Math.random()
       const v = Math.random()
@@ -125,7 +151,7 @@ export function NeuralBrain({
 
       const region = nearestRegion(fx, fy)
       regionAttr[i] = region
-      color.setHex(BRAIN_REGIONS[region].hex)
+      color.setHex(hexForRegion(region))
       colors[i * 3] = color.r
       colors[i * 3 + 1] = color.g
       colors[i * 3 + 2] = color.b
@@ -222,7 +248,7 @@ export function NeuralBrain({
       }
       if (nearest && bestd < 0.16) {
         linePositions.push(a.x, a.y, a.z, nearest.x, nearest.y, nearest.z)
-        color.setHex(BRAIN_REGIONS[i % BRAIN_REGIONS.length].hex)
+        color.setHex(hexForRegion(i % BRAIN_REGIONS.length))
         lineColors.push(color.r, color.g, color.b, color.r, color.g, color.b)
       }
     }
@@ -255,7 +281,7 @@ export function NeuralBrain({
 
     const coreMat = new THREE.SpriteMaterial({
       map: glowTex,
-      color: 0xeaf6ff,
+      color: VARIANT_CORE[variant],
       transparent: true,
       opacity: 0.9,
       blending: THREE.AdditiveBlending,
@@ -268,7 +294,7 @@ export function NeuralBrain({
     // onda de choque (ráfaga "encontrado")
     const shockMat = new THREE.SpriteMaterial({
       map: glowTex,
-      color: 0xbfe9ff,
+      color: VARIANT_CORE[variant],
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
@@ -343,7 +369,9 @@ export function NeuralBrain({
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [])
+    // Reconstruye al cambiar de variante (cambia paleta de partículas/sinapsis/núcleo).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant])
 
   return <div ref={mountRef} className={className} aria-hidden="true" />
 }

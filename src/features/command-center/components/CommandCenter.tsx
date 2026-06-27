@@ -11,6 +11,7 @@ import type { Tenant } from '../types'
 import { AmbientBackground } from './AmbientBackground'
 import { StatusBar } from './StatusBar'
 import { BrainCenterpiece } from './BrainCenterpiece'
+import type { BrainVariant } from './NeuralBrain'
 import { CommandBar } from './CommandBar'
 import { ConversationStream } from './ConversationStream'
 import { CouncilIndicator } from './CouncilIndicator'
@@ -79,6 +80,7 @@ export function CommandCenter() {
   }, [setKnowledgeCount])
 
   const assistantName = personalization?.assistantName ?? 'Hermes'
+  const brainVariant = (personalization?.brainVariant ?? 'aurora') as BrainVariant
   const busy = hermes.status === 'submitted' || hermes.status === 'streaming'
 
   // Los CONTROLES solo aparecen al mover el mouse (no al aplaudir/hablar). Por defecto: solo el cerebro.
@@ -145,7 +147,7 @@ export function CommandCenter() {
               </div>
             )}
             {/* El cerebro llena toda la pantalla */}
-            <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} fill />
+            <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} variant={brainVariant} fill />
 
             {/* Controles: SOLO al mover el mouse (no al aplaudir/hablar). Voz-primero. */}
             <header
@@ -211,7 +213,7 @@ export function CommandCenter() {
             <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden px-4 pb-4 lg:grid-cols-[1fr_22rem]">
               <section className="flex min-h-0 flex-col">
                 <div className="flex items-center justify-between py-2">
-                  <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} compact />
+                  <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} variant={brainVariant} compact />
                   <button
                     type="button"
                     onClick={() => setImmersive(true)}

@@ -62,6 +62,7 @@ export async function POST(req: Request) {
       countryFlag: '🇲🇽',
       partyLogo: null,
       backgroundImage: null,
+      brainVariant: 'aurora',
       locale: 'es-MX',
       visualStyle: 'political',
     }

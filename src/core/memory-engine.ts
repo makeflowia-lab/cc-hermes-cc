@@ -18,6 +18,7 @@ interface TenantRow {
   country_flag: string | null
   party_logo: string | null
   background_image: string | null
+  brain_variant: string
   locale: string
   visual_style: string
 }
@@ -33,6 +34,7 @@ function mapTenant(r: TenantRow): Tenant {
     countryFlag: r.country_flag,
     partyLogo: r.party_logo,
     backgroundImage: r.background_image,
+    brainVariant: r.brain_variant,
     locale: r.locale,
     visualStyle: r.visual_style,
   }
@@ -57,6 +59,7 @@ export interface TenantPatch {
   countryFlag?: string | null
   partyLogo?: string | null
   backgroundImage?: string | null
+  brainVariant?: string
   locale?: string
   visualStyle?: string
 }
@@ -74,6 +77,7 @@ export async function updateTenant(slug: string, patch: TenantPatch): Promise<Te
       background_image = ${
         patch.backgroundImage === undefined ? sql`background_image` : patch.backgroundImage || null
       },
+      brain_variant  = COALESCE(${patch.brainVariant ?? null}, brain_variant),
       locale         = COALESCE(${patch.locale ?? null}, locale),
       visual_style   = COALESCE(${patch.visualStyle ?? null}, visual_style),
       updated_at     = now()

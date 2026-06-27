@@ -25,6 +25,15 @@ const STYLES = [
   { key: 'minimal', label: 'Minimalista' },
 ]
 
+// Variantes de diseño del cerebro (paletas en NeuralBrain).
+const BRAIN_VARIANTS = [
+  { key: 'aurora', label: 'Aurora', dot: '#a78bfa' },
+  { key: 'jarvis', label: 'Jarvis (cian)', dot: '#22d3ee' },
+  { key: 'plasma', label: 'Plasma', dot: '#d946ef' },
+  { key: 'matrix', label: 'Matrix', dot: '#22c55e' },
+  { key: 'gold', label: 'Oro', dot: '#fbbf24' },
+]
+
 const FLAGS = ['🇲🇽', '🇨🇴', '🇦🇷', '🇪🇸', '🇨🇱', '🇵🇪', '🇺🇸', '🏛️']
 
 function hexToRgb(hex: string): string | null {
@@ -74,6 +83,7 @@ export function PersonalizationDrawer() {
     countryFlag: '🇲🇽',
     partyLogo: '',
     backgroundImage: '',
+    brainVariant: 'aurora',
     visualStyle: 'political',
   })
   const [saving, setSaving] = useState(false)
@@ -92,6 +102,7 @@ export function PersonalizationDrawer() {
         countryFlag: personalization.countryFlag ?? '🇲🇽',
         partyLogo: personalization.partyLogo ?? '',
         backgroundImage: personalization.backgroundImage ?? '',
+        brainVariant: personalization.brainVariant ?? 'aurora',
         visualStyle: personalization.visualStyle,
       })
     }
@@ -311,6 +322,28 @@ export function PersonalizationDrawer() {
                   </label>
                 )}
                 {bgError && <p className="mt-1 text-[11px] text-state-crisis">{bgError}</p>}
+              </div>
+
+              <div>
+                <span className="mb-2 block text-xs text-slate-400">Diseño del cerebro</span>
+                <div className="flex flex-wrap gap-2">
+                  {BRAIN_VARIANTS.map((b) => (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => setForm({ ...form, brainVariant: b.key })}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition',
+                        form.brainVariant === b.key
+                          ? 'glass-accent text-white'
+                          : 'border-hairline bg-white/[0.02] text-slate-400',
+                      )}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.dot }} />
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

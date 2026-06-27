@@ -18,11 +18,13 @@ CREATE TABLE IF NOT EXISTS tenants (
   locale        text NOT NULL DEFAULT 'es-MX',
   visual_style  text NOT NULL DEFAULT 'political',     -- political | government | corporate | military | minimal
   background_image text,                               -- foto/logo de fondo (URL, ruta /public o data URI)
+  brain_variant text NOT NULL DEFAULT 'aurora',        -- aurora | jarvis | plasma | matrix | gold
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
--- Migración idempotente para instalaciones existentes.
+-- Migraciones idempotentes para instalaciones existentes.
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS background_image text;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS brain_variant text NOT NULL DEFAULT 'aurora';
 
 -- ---------- CONVERSACIONES (memoria de medio plazo) ----------
 CREATE TABLE IF NOT EXISTS conversations (

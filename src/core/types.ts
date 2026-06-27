@@ -51,6 +51,7 @@ export interface Tenant {
   countryFlag: string | null
   partyLogo: string | null
   backgroundImage: string | null // foto/logo de fondo (URL, ruta /public o data URI); el cerebro va delante
+  brainVariant: string // diseño del cerebro: aurora | jarvis | plasma | matrix | gold
   locale: string
   visualStyle: string
 }

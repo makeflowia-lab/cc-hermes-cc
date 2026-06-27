@@ -17,6 +17,7 @@ const PatchSchema = z.object({
   partyLogo: z.string().url().max(2048).nullable().optional().or(z.literal('')),
   // Fondo: URL, ruta /public o data URI (imagen subida). Generoso para base64; '' lo quita.
   backgroundImage: z.string().max(8_000_000).nullable().optional().or(z.literal('')),
+  brainVariant: z.enum(['aurora', 'jarvis', 'plasma', 'matrix', 'gold']).optional(),
   locale: z.string().max(10).optional(),
   visualStyle: z.enum(['political', 'government', 'corporate', 'military', 'minimal']).optional(),
 })
