@@ -77,7 +77,9 @@ export type DisplayDecision =
   | { kind: 'text' }
   | { kind: 'image'; query: string }
   | { kind: 'video'; query: string }
+  | { kind: 'map'; query: string }
 
+const RE_MAP = /\b(mapas?|ubicaci[oó]n|ge[oó]localiza|d[oó]nde (?:est[aá]|queda|se encuentra)|c[oó]mo (?:llego|llegar)|ub[ií]came|en el mapa|ll[eé]vame a)\b/i
 const RE_VIDEO = /\b(videos?|v[ií]deos?|clips?|youtube|reproduce|reprod[uú]celo|p[oó]n(?:me)?\s+(?:un|el)\s+v[ií]deo)\b/i
 const RE_IMAGE = /\b(im[aá]genes?|im[aá]gen|fotos?|foto|fotograf[ií]as?)\b/i
 const RE_SHOW = /\b(mu[eé]strame|mu[eé]strales?|mu[eé]stralo|mu[eé]strala|ens[eé][ñn]ame|abre(?:\s+una)?\s+ventana|ponme\s+en\s+pantalla|p[oó]n\s+en\s+pantalla|visual[ií]za|despli[eé]ga|en\s+una\s+ventana)\b/i
@@ -94,9 +96,21 @@ function mediaQuery(text: string): string {
   return q.replace(/\s+/g, ' ').trim()
 }
 
+/** Limpia el texto para usarlo como búsqueda de lugar (mapa). */
+function mapQuery(text: string): string {
+  let q = text.replace(/^\s*(oye|hey|ok)?\s*hermes[,\s]*/i, '')
+  q = q.replace(
+    /\b(mu[eé]strame|ens[eé][ñn]ame|abre|ponme|p[oó]n|busca(?:r)?|quiero ver|ll[eé]vame a|ub[ií]came(?:\s+en)?|c[oó]mo (?:llego|llegar)(?:\s+a)?|d[oó]nde (?:est[aá]|queda|se encuentra)|ubicaci[oó]n de(?:l)?|ge[oó]localiza|en el mapa|el mapa de(?:l)?|un mapa de(?:l)?|mapas? de(?:l)?|mapas?)\b/gi,
+    ' ',
+  )
+  return q.replace(/\s+/g, ' ').trim()
+}
+
 export function decideDisplay(text: string): DisplayDecision {
   const t = text.trim()
   if (!t) return { kind: 'none' }
+  // Mapa primero (un "muéstrame el mapa de X" no debe caer en imagen ni texto).
+  if (RE_MAP.test(t)) return { kind: 'map', query: mapQuery(t) || t }
   // Media gana sobre "muéstrame" (p.ej. "muéstrame fotos de X" → imagen).
   if (RE_VIDEO.test(t)) return { kind: 'video', query: mediaQuery(t) || t }
   if (RE_IMAGE.test(t)) return { kind: 'image', query: mediaQuery(t) || t }

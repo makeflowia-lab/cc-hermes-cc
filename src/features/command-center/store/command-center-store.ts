@@ -106,6 +106,7 @@ export interface FloatingWin {
   web?: boolean
   sources?: boolean
   media?: { kind: 'image' | 'video'; items: MediaItem[] }
+  map?: { embedUrl: string; label: string; linkUrl?: string } // mapa interactivo (OpenStreetMap)
   pos?: { x: number; y: number } // posición manual (gestos con la mano); anula el mosaico
 }
 

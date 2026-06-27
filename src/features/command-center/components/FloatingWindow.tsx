@@ -89,6 +89,7 @@ function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
 export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect }) {
   const removeWindow = useCommandCenter((s) => s.removeWindow)
   const hasMedia = !!win.media && win.media.items.length > 0
+  const hasMap = !!win.map
 
   return (
     <motion.div
@@ -124,8 +125,26 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed text-slate-100">
-        {hasMedia ? (
+      <div className={cn('flex-1 overflow-y-auto text-sm leading-relaxed text-slate-100', hasMap ? 'p-0' : 'px-4 py-3')}>
+        {hasMap ? (
+          <div className="flex h-full flex-col">
+            <iframe
+              src={win.map!.embedUrl}
+              title={win.map!.label}
+              className="h-full min-h-[220px] w-full flex-1 border-0"
+              loading="lazy"
+            />
+            <a
+              href={win.map!.linkUrl || win.map!.embedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate border-t border-hairline px-3 py-1.5 text-[10px] text-slate-400 hover:text-accent"
+              title={win.map!.label}
+            >
+              {win.map!.label} · ampliar ↗
+            </a>
+          </div>
+        ) : hasMedia ? (
           <MediaView media={win.media!} />
         ) : win.content ? (
           <p className="whitespace-pre-wrap">{win.content}</p>

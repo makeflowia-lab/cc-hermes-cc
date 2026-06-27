@@ -230,6 +230,36 @@ export function useHermes() {
         return
       }
 
+      // MAPA: lugar → ventana con mapa interactivo (OpenStreetMap, con zoom).
+      if (display.kind === 'map') {
+        currentWindowIdRef.current = null
+        const winId = newId()
+        s.addWindow({ id: winId, title: titleOf(t), content: '', loading: true })
+        const done = (spoken: string) => {
+          if (useCommandCenter.getState().voiceOutput) speakRef.current(spoken, () => resumeRef.current())
+          else resumeRef.current()
+        }
+        fetch(`/api/map?q=${encodeURIComponent(display.query)}`, { signal: AbortSignal.timeout(9000) })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('map'))))
+          .then((data) => {
+            if (data?.found && data.embedUrl) {
+              useCommandCenter.getState().updateWindow(winId, {
+                loading: false,
+                map: { embedUrl: data.embedUrl, label: data.label, linkUrl: data.linkUrl },
+              })
+              done('Aquí está el mapa.')
+            } else {
+              useCommandCenter.getState().updateWindow(winId, { loading: false, content: 'No encontré ese lugar.' })
+              done('No encontré ese lugar.')
+            }
+          })
+          .catch(() => {
+            useCommandCenter.getState().updateWindow(winId, { loading: false, content: 'No pude cargar el mapa.' })
+            done('No pude cargar el mapa.')
+          })
+        return
+      }
+
       // TEXTO: solo si pide explícitamente "muéstrame / abre una ventana". Si no, NO abre ventana (solo voz).
       if (display.kind === 'text') {
         const winId = newId()
