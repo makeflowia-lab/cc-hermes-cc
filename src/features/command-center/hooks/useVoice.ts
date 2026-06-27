@@ -86,6 +86,7 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null) // reproductor de la voz neuronal (ElevenLabs)
   const cloudDownRef = useRef(false) // si el TTS en la nube falla, deja de intentarlo en la sesión
+  const cloudFailRef = useRef(0) // fallos seguidos de la nube → tras 2 usa solo el navegador (voz consistente)
 
   useEffect(() => {
     setSttSupported(!!getRecognitionCtor())
@@ -228,17 +229,20 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
         body: JSON.stringify({ text: plain }),
       })
         .then(async (r) => {
-          // Solo 501 (sin key configurada) apaga la voz neuronal de forma permanente.
-          // Cualquier otro fallo (502/400/cuota/red) NO se "engancha": la próxima frase reintenta Brian.
+          // 501 (sin key) apaga la voz neuronal de inmediato. Otros fallos (502/cuota/red) cuentan:
+          // tras 2 seguidos se usa SOLO el navegador para que la voz sea consistente (no brinque).
           if (r.status === 501) {
             cloudDownRef.current = true
             speakBrowser(text, onEnd)
             return
           }
           if (!r.ok) {
+            cloudFailRef.current += 1
+            if (cloudFailRef.current >= 2) cloudDownRef.current = true
             speakBrowser(text, onEnd)
             return
           }
+          cloudFailRef.current = 0 // éxito → reinicia el contador
           const blob = await r.blob()
           const url = URL.createObjectURL(blob)
           let a = audioRef.current
@@ -264,7 +268,8 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
           })
         })
         .catch(() => {
-          // Error de red puntual → reintenta en la próxima frase (sin enganchar).
+          cloudFailRef.current += 1
+          if (cloudFailRef.current >= 2) cloudDownRef.current = true
           speakBrowser(text, onEnd)
         })
     },
