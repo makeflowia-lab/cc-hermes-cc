@@ -68,6 +68,11 @@ interface CommandCenterState {
   clapEnabled: boolean
   toggleClap: () => void
 
+  // Control por GESTOS con cámara (mano mueve ventanas). Opt-in: pide permiso de cámara.
+  gestureEnabled: boolean
+  setGestureEnabled: (b: boolean) => void
+  toggleGesture: () => void
+
   // Standby → "se inicia con 2 aplausos". Hasta activarse, solo el cerebro en pantalla.
   awake: boolean
   setAwake: (v: boolean) => void
@@ -97,6 +102,7 @@ export interface FloatingWin {
   web?: boolean
   sources?: boolean
   media?: { kind: 'image' | 'video'; items: MediaItem[] }
+  pos?: { x: number; y: number } // posición manual (gestos con la mano); anula el mosaico
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({
@@ -154,6 +160,10 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
 
   clapEnabled: true,
   toggleClap: () => set((s) => ({ clapEnabled: !s.clapEnabled })),
+
+  gestureEnabled: false,
+  setGestureEnabled: (gestureEnabled) => set({ gestureEnabled }),
+  toggleGesture: () => set((s) => ({ gestureEnabled: !s.gestureEnabled })),
 
   awake: false,
   setAwake: (awake) => set({ awake }),

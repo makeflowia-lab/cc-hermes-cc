@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MotionConfig } from 'framer-motion'
-import { Hand, Volume2, VolumeX, Maximize2, Minimize2, Settings } from 'lucide-react'
+import { Hand, Volume2, VolumeX, Maximize2, Minimize2, Settings, Camera } from 'lucide-react'
 import { useHermes } from '../hooks/useHermes'
 import { useCommandCenter } from '../store/command-center-store'
 import { applyAccent } from '../theme'
@@ -22,6 +22,7 @@ import { KnowledgeDrawer } from './KnowledgeDrawer'
 import { VisionPanel } from './VisionPanel'
 import { DashboardOverlay } from './DashboardOverlay'
 import { WindowsLayer } from './WindowsLayer'
+import { HandController } from './HandController'
 
 export function CommandCenter() {
   const hermes = useHermes()
@@ -42,6 +43,8 @@ export function CommandCenter() {
     toggleVoiceOutput,
     clapEnabled,
     toggleClap,
+    gestureEnabled,
+    toggleGesture,
     awake,
   } = useCommandCenter()
 
@@ -168,6 +171,15 @@ export function CommandCenter() {
                 </button>
                 <button
                   type="button"
+                  onClick={toggleGesture}
+                  className={cn(iconBtn, gestureEnabled && 'glass-accent')}
+                  title={gestureEnabled ? 'Gestos con cámara: ON (pellizca para mover ventanas)' : 'Gestos con cámara: OFF'}
+                  aria-label="Control por gestos con cámara"
+                >
+                  <Camera className={cn('h-4 w-4', gestureEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
                   onClick={toggleVoiceOutput}
                   className={iconBtn}
                   title={voiceOutput ? 'Voz de Hermes: ON' : 'Voz de Hermes: OFF'}
@@ -249,6 +261,9 @@ export function CommandCenter() {
         {/* Ventanas en MOSAICO sobre el cerebro (info bajo demanda). Solo en inmersivo:
             el tablero completo ya tiene su propio flujo de conversación. */}
         {immersive && <WindowsLayer />}
+
+        {/* Control por gestos con cámara (pellizca para mover ventanas con la mano) */}
+        {gestureEnabled && <HandController />}
 
         {/* Overlays invocables */}
         <BriefingPanel open={briefingOpen} onClose={() => setBriefingOpen(false)} />

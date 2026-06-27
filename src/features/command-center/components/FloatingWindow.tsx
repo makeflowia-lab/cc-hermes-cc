@@ -92,10 +92,12 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
 
   return (
     <motion.div
+      data-win-id={win.id}
       initial={{ opacity: 0, scale: 0.96, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
       animate={{ opacity: 1, scale: 1, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
       exit={{ opacity: 0, scale: 0.94 }}
-      transition={{ type: 'spring', damping: 28, stiffness: 240 }}
+      // Al arrastrar con la mano (pos) sigue al cursor casi al instante; en el mosaico, resorte suave.
+      transition={win.pos ? { type: 'tween', duration: 0.06, ease: 'linear' } : { type: 'spring', damping: 28, stiffness: 240 }}
       className="glass glass-accent pointer-events-auto absolute left-0 top-0 flex flex-col overflow-hidden rounded-2xl shadow-panel"
       // Más opaca que .glass para que el contenido se lea sobre el cerebro brillante.
       style={{ background: 'linear-gradient(180deg, rgba(13,20,36,0.93), rgba(9,15,28,0.9))' }}

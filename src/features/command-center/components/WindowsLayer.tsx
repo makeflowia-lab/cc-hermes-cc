@@ -36,13 +36,15 @@ export function WindowsLayer() {
   const gridH = rows * cellH + gap * (rows - 1)
   const startY = padTop + Math.max(0, (availH - gridH) / 2)
 
-  const rects: WinRect[] = windows.map((_, i) => {
+  const rects: WinRect[] = windows.map((win, i) => {
     const row = Math.floor(i / cols)
     const col = i % cols
     const itemsInRow = row === rows - 1 ? n - cols * (rows - 1) : cols
     const rowW = itemsInRow * cellW + gap * (itemsInRow - 1)
     const rowStartX = (vp.w - rowW) / 2 // centra cada fila (también la última incompleta)
-    return { x: rowStartX + col * (cellW + gap), y: startY + row * (cellH + gap), w: cellW, h: cellH }
+    const tiled = { x: rowStartX + col * (cellW + gap), y: startY + row * (cellH + gap), w: cellW, h: cellH }
+    // Si la ventana fue movida con la mano (pos), conserva su tamaño del mosaico pero usa esa posición.
+    return win.pos ? { ...tiled, x: win.pos.x, y: win.pos.y } : tiled
   })
 
   return (
