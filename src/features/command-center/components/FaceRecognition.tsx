@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { UserCheck, UserPlus, X } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
+import { getCameraStream } from '../camera'
 import { cn } from '@/lib/utils'
 
 /**
@@ -37,6 +38,7 @@ export function FaceRecognition() {
   const operatorName = useCommandCenter((s) => s.operatorName)
   const setRecognizedName = useCommandCenter((s) => s.setRecognizedName)
   const toggleFace = useCommandCenter((s) => s.toggleFace)
+  const cameraId = useCommandCenter((s) => s.cameraId)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const lastDescRef = useRef<Float32Array | null>(null)
@@ -59,7 +61,7 @@ export function FaceRecognition() {
 
     ;(async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 } })
+        stream = await getCameraStream(cameraId)
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop())
           return
@@ -84,6 +86,7 @@ export function FaceRecognition() {
           if (v && v.readyState >= 2) {
             try {
               const det = await faceapi.detectSingleFace(v, opts).withFaceLandmarks().withFaceDescriptor()
+              if (cancelled) return // se apagó durante la detección → no escribir el store
               if (det?.descriptor) {
                 lastDescRef.current = det.descriptor
                 setHasFace(true)
@@ -95,7 +98,12 @@ export function FaceRecognition() {
                     setRecognizedName(enr.name)
                     lastMatchAt = performance.now()
                   } else {
+                    // Otro rostro (no coincide): olvida el reconocimiento de inmediato (no saludar a quien no es).
                     setMatch(null)
+                    if (lastMatchAt) {
+                      lastMatchAt = 0
+                      setRecognizedName(null)
+                    }
                   }
                 }
               } else {
@@ -116,6 +124,9 @@ export function FaceRecognition() {
         loop()
       } catch (e) {
         console.error('[face]', e)
+        // Si falla el CDN/modelos tras abrir la cámara, apágala (no dejarla grabando con estado "error").
+        stream?.getTracks().forEach((t) => t.stop())
+        if (videoRef.current) videoRef.current.srcObject = null
         if (!cancelled) setStatus('error')
       }
     })()
@@ -124,9 +135,10 @@ export function FaceRecognition() {
       cancelled = true
       if (timer) clearTimeout(timer)
       stream?.getTracks().forEach((t) => t.stop())
+      if (videoRef.current) videoRef.current.srcObject = null
       setRecognizedName(null)
     }
-  }, [setRecognizedName])
+  }, [setRecognizedName, cameraId])
 
   const enroll = () => {
     const desc = lastDescRef.current

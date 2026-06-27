@@ -54,8 +54,13 @@ export function WindowsLayer() {
     const rowW = itemsInRow * cellW + gap * (itemsInRow - 1)
     const rowStartX = (vp.w - rowW) / 2 // centra cada fila (también la última incompleta)
     const tiled = { x: rowStartX + col * (cellW + gap), y: startY + row * (cellH + gap), w: cellW, h: cellH }
-    // Si la ventana fue movida con la mano (pos), conserva su tamaño del mosaico pero usa esa posición.
-    return win.pos ? { ...tiled, x: win.pos.x, y: win.pos.y } : tiled
+    // pos/size manuales (gestos con la mano) anulan el mosaico.
+    return {
+      x: win.pos ? win.pos.x : tiled.x,
+      y: win.pos ? win.pos.y : tiled.y,
+      w: win.size ? win.size.w : tiled.w,
+      h: win.size ? win.size.h : tiled.h,
+    }
   })
 
   return (
@@ -67,6 +72,7 @@ export function WindowsLayer() {
           aria-label="Cerrar vista ampliada"
           onClick={() => setExpandedId(null)}
           className="pointer-events-auto absolute inset-0 bg-black/70 backdrop-blur-sm"
+          style={{ zIndex: 40 }}
         />
       )}
       <AnimatePresence>

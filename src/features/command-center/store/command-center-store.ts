@@ -3,6 +3,18 @@
 import { create } from 'zustand'
 import type { Mode, SpecialistKey, Tenant, Briefing } from '../types'
 
+export type ControlKey = 'clap' | 'gesture' | 'face' | 'voice' | 'settings'
+const DEFAULT_CONTROLS: Record<ControlKey, boolean> = { clap: true, gesture: true, face: true, voice: true, settings: true }
+function loadControls(): Record<ControlKey, boolean> {
+  if (typeof window === 'undefined') return DEFAULT_CONTROLS
+  try {
+    const raw = localStorage.getItem('hermes_controls')
+    return raw ? { ...DEFAULT_CONTROLS, ...JSON.parse(raw) } : DEFAULT_CONTROLS
+  } catch {
+    return DEFAULT_CONTROLS
+  }
+}
+
 interface CommandCenterState {
   // Modo operativo del centro de mando
   mode: Mode
@@ -73,6 +85,14 @@ interface CommandCenterState {
   setGestureEnabled: (b: boolean) => void
   toggleGesture: () => void
 
+  // Cámara elegida (deviceId) para gestos y rostro. '' = la que el navegador elija por defecto.
+  cameraId: string
+  setCameraId: (id: string) => void
+
+  // Qué iconos de control mostrar en el encabezado (el usuario decide cuáles activar/ocultar).
+  controls: Record<ControlKey, boolean>
+  setControl: (key: ControlKey, value: boolean) => void
+
   // RECONOCIMIENTO FACIAL (cámara te identifica y saluda por nombre). Opt-in.
   faceEnabled: boolean
   setFaceEnabled: (b: boolean) => void
@@ -118,6 +138,7 @@ export interface FloatingWin {
   media?: { kind: 'image' | 'video'; items: MediaItem[] }
   map?: { embedUrl: string; label: string; linkUrl?: string } // mapa interactivo (OpenStreetMap)
   pos?: { x: number; y: number } // posición manual (gestos con la mano); anula el mosaico
+  size?: { w: number; h: number } // tamaño manual (redimensionar con 2 manos); anula el del mosaico
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({
@@ -179,6 +200,20 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   gestureEnabled: false,
   setGestureEnabled: (gestureEnabled) => set({ gestureEnabled }),
   toggleGesture: () => set((s) => ({ gestureEnabled: !s.gestureEnabled })),
+
+  cameraId: typeof window !== 'undefined' ? localStorage.getItem('hermes_camera') ?? '' : '',
+  setCameraId: (cameraId) => {
+    if (typeof window !== 'undefined') localStorage.setItem('hermes_camera', cameraId)
+    set({ cameraId })
+  },
+
+  controls: loadControls(),
+  setControl: (key, value) =>
+    set((s) => {
+      const controls = { ...s.controls, [key]: value }
+      if (typeof window !== 'undefined') localStorage.setItem('hermes_controls', JSON.stringify(controls))
+      return { controls }
+    }),
 
   faceEnabled: false,
   setFaceEnabled: (faceEnabled) => set({ faceEnabled }),

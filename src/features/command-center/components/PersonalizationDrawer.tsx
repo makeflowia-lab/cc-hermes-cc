@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, Palette, ImagePlus, Trash2 } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
+import { listCameras } from '../camera'
 import { useModalA11y } from '../hooks/useModalA11y'
 import { applyAccent } from '../theme'
 import { cn } from '@/lib/utils'
@@ -74,7 +75,15 @@ function fileToScaledDataUri(file: File): Promise<string> {
 }
 
 export function PersonalizationDrawer() {
-  const { personalizationOpen, setPersonalizationOpen, personalization, setPersonalization, operatorName, setOperatorName } = useCommandCenter()
+  const { personalizationOpen, setPersonalizationOpen, personalization, setPersonalization, operatorName, setOperatorName, cameraId, setCameraId, controls, setControl } = useCommandCenter()
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
+  const CONTROL_LABELS: { key: 'clap' | 'gesture' | 'face' | 'voice' | 'settings'; label: string }[] = [
+    { key: 'clap', label: 'Aplausos (mano)' },
+    { key: 'gesture', label: 'Gestos (cámara)' },
+    { key: 'face', label: 'Rostro' },
+    { key: 'voice', label: 'Voz' },
+    { key: 'settings', label: 'Configuración' },
+  ]
   const [form, setForm] = useState({
     assistantName: 'Hermes',
     orgName: '',
@@ -112,6 +121,11 @@ export function PersonalizationDrawer() {
   useEffect(() => {
     if (personalizationOpen) applyAccent(form.accentRgb)
   }, [form.accentRgb, personalizationOpen])
+
+  // Lista de cámaras (para elegir la USB en vez de la integrada). Etiquetas tras conceder permiso.
+  useEffect(() => {
+    if (personalizationOpen) listCameras().then(setCameras)
+  }, [personalizationOpen])
 
   const save = async () => {
     setSaving(true)
@@ -194,6 +208,44 @@ export function PersonalizationDrawer() {
                   placeholder="Ej. Ricardo"
                 />
               </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs text-slate-400">Cámara (gestos y rostro)</span>
+                <select className={field} value={cameraId} onChange={(e) => setCameraId(e.target.value)}>
+                  <option value="">Predeterminada del navegador</option>
+                  {cameras.map((c, i) => (
+                    <option key={c.deviceId || i} value={c.deviceId}>
+                      {c.label || `Cámara ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-[10px] text-slate-500">
+                  Si los nombres salen vacíos, enciende gestos/rostro una vez para conceder permiso y vuelve a abrir.
+                </span>
+              </label>
+
+              <div>
+                <span className="mb-2 block text-xs text-slate-400">Iconos de control visibles</span>
+                <div className="flex flex-wrap gap-2">
+                  {CONTROL_LABELS.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setControl(c.key, !controls[c.key])}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-xs transition',
+                        controls[c.key] ? 'glass-accent text-white' : 'border-hairline bg-white/[0.02] text-slate-500',
+                      )}
+                    >
+                      {controls[c.key] ? '✓ ' : ''}
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="mt-1 block text-[10px] text-slate-500">
+                  Aunque ocultes "Configuración", puedes reabrir esto diciendo "abre configuración".
+                </span>
+              </div>
 
               <label className="block">
                 <span className="mb-1 block text-xs text-slate-400">Organización / Partido</span>

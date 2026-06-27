@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, Maximize2, Minimize2 } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
@@ -18,6 +18,10 @@ export interface WinRect {
 function MediaView({ media, expanded }: { media: NonNullable<FloatingWin['media']>; expanded: boolean }) {
   const [sel, setSel] = useState(0)
   const [picked, setPicked] = useState(false)
+  // Al ampliar, fija autoplay para que reducir NO recargue/detenga el video (key estable).
+  useEffect(() => {
+    if (expanded) setPicked(true)
+  }, [expanded])
 
   if (media.kind === 'video') {
     const cur = media.items[Math.min(sel, media.items.length - 1)]
@@ -106,8 +110,8 @@ export function FloatingWindow({ win, rect, expanded = false }: { win: FloatingW
       initial={{ opacity: 0, scale: 0.96, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
       animate={{ opacity: 1, scale: 1, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
       exit={{ opacity: 0, scale: 0.94 }}
-      // Al arrastrar con la mano (pos) sigue al cursor casi al instante; en el mosaico, resorte suave.
-      transition={win.pos && !expanded ? { type: 'tween', duration: 0.06, ease: 'linear' } : { type: 'spring', damping: 28, stiffness: 240 }}
+      // Al manipular con las manos (pos/size) sigue casi al instante; en el mosaico, resorte suave.
+      transition={(win.pos || win.size) && !expanded ? { type: 'tween', duration: 0.06, ease: 'linear' } : { type: 'spring', damping: 28, stiffness: 240 }}
       className="glass glass-accent pointer-events-auto absolute left-0 top-0 flex flex-col overflow-hidden rounded-2xl shadow-panel"
       // Más opaca que .glass para que el contenido se lea sobre el cerebro brillante. zIndex alto si está ampliada.
       style={{ background: 'linear-gradient(180deg, rgba(13,20,36,0.93), rgba(9,15,28,0.9))', zIndex: expanded ? 50 : undefined }}

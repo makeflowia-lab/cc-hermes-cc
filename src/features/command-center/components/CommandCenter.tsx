@@ -48,6 +48,7 @@ export function CommandCenter() {
     toggleGesture,
     faceEnabled,
     toggleFace,
+    controls,
     awake,
   } = useCommandCenter()
 
@@ -163,51 +164,61 @@ export function CommandCenter() {
               )}
             >
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleClap}
-                  className={cn(iconBtn, clapEnabled && 'glass-accent')}
-                  title={clapEnabled ? 'Activación por 2 aplausos: ON' : 'Activación por 2 aplausos: OFF'}
-                  aria-label="Activación por doble aplauso"
-                >
-                  <Hand className={cn('h-4 w-4', clapEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleGesture}
-                  className={cn(iconBtn, gestureEnabled && 'glass-accent')}
-                  title={gestureEnabled ? 'Gestos con cámara: ON (pellizca para mover, puño para cerrar)' : 'Gestos con cámara: OFF'}
-                  aria-label="Control por gestos con cámara"
-                >
-                  <Camera className={cn('h-4 w-4', gestureEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleFace}
-                  className={cn(iconBtn, faceEnabled && 'glass-accent')}
-                  title={faceEnabled ? 'Reconocimiento facial: ON (te saluda por nombre)' : 'Reconocimiento facial: OFF'}
-                  aria-label="Reconocimiento facial"
-                >
-                  <ScanFace className={cn('h-4 w-4', faceEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleVoiceOutput}
-                  className={iconBtn}
-                  title={voiceOutput ? 'Voz de Hermes: ON' : 'Voz de Hermes: OFF'}
-                  aria-label="Voz de Hermes"
-                >
-                  {voiceOutput ? <Volume2 className="h-4 w-4 accent" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-slate-500" aria-hidden="true" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPersonalizationOpen(true)}
-                  className={iconBtn}
-                  title="Personalización"
-                  aria-label="Abrir personalización"
-                >
-                  <Settings className="h-4 w-4 text-slate-300" aria-hidden="true" />
-                </button>
+                {controls.clap && (
+                  <button
+                    type="button"
+                    onClick={toggleClap}
+                    className={cn(iconBtn, clapEnabled && 'glass-accent')}
+                    title={clapEnabled ? 'Activación por 2 aplausos: ON' : 'Activación por 2 aplausos: OFF'}
+                    aria-label="Activación por doble aplauso"
+                  >
+                    <Hand className={cn('h-4 w-4', clapEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+                  </button>
+                )}
+                {controls.gesture && (
+                  <button
+                    type="button"
+                    onClick={toggleGesture}
+                    className={cn(iconBtn, gestureEnabled && 'glass-accent')}
+                    title={gestureEnabled ? 'Gestos con cámara: ON (pellizca mover, puño cerrar, pulgar reproducir)' : 'Gestos con cámara: OFF'}
+                    aria-label="Control por gestos con cámara"
+                  >
+                    <Camera className={cn('h-4 w-4', gestureEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+                  </button>
+                )}
+                {controls.face && (
+                  <button
+                    type="button"
+                    onClick={toggleFace}
+                    className={cn(iconBtn, faceEnabled && 'glass-accent')}
+                    title={faceEnabled ? 'Reconocimiento facial: ON (te saluda por nombre)' : 'Reconocimiento facial: OFF'}
+                    aria-label="Reconocimiento facial"
+                  >
+                    <ScanFace className={cn('h-4 w-4', faceEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+                  </button>
+                )}
+                {controls.voice && (
+                  <button
+                    type="button"
+                    onClick={toggleVoiceOutput}
+                    className={iconBtn}
+                    title={voiceOutput ? 'Voz de Hermes: ON' : 'Voz de Hermes: OFF'}
+                    aria-label="Voz de Hermes"
+                  >
+                    {voiceOutput ? <Volume2 className="h-4 w-4 accent" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-slate-500" aria-hidden="true" />}
+                  </button>
+                )}
+                {controls.settings && (
+                  <button
+                    type="button"
+                    onClick={() => setPersonalizationOpen(true)}
+                    className={iconBtn}
+                    title="Personalización"
+                    aria-label="Abrir personalización"
+                  >
+                    <Settings className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setImmersive(false)}

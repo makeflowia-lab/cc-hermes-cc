@@ -29,8 +29,13 @@ function isStopWord(text: string): boolean {
     .replace(/[^\w\s]/g, '')
     .trim()
   const tokens = n.split(/\s+/).filter(Boolean)
-  if (tokens.length === 0 || tokens.length > 3) return false
-  return tokens.some((w) => ['ok', 'okay', 'okey', 'oka', 'listo'].includes(w))
+  if (tokens.length === 0 || tokens.length > 4) return false
+  const EXIT = [
+    'ok', 'okay', 'okey', 'okei', 'okai', 'oki', 'oka', 'vale', 'listo', 'gracias',
+    'cancela', 'cancelar', 'detente', 'deten', 'para', 'alto', 'silencio', 'adios',
+    'chao', 'termina', 'terminar', 'salir', 'descansa', 'suficiente',
+  ]
+  return tokens.some((w) => EXIT.includes(w))
 }
 
 export function useHermes() {
