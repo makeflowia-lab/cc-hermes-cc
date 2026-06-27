@@ -40,6 +40,7 @@ export function useHermes() {
   const setLastTranscript = useCommandCenter((s) => s.setLastTranscript)
   const wakeWordEnabled = useCommandCenter((s) => s.wakeWordEnabled)
   const clapEnabled = useCommandCenter((s) => s.clapEnabled)
+  const awake = useCommandCenter((s) => s.awake)
 
   const speakRef = useRef<(t: string, onEnd?: () => void) => void>(() => {})
   const askRef = useRef<(t: string) => void>(() => {})
@@ -276,24 +277,20 @@ export function useHermes() {
   // Ignición: "se inicia con 2 aplausos" (o clic). Despierta, SALUDA según la hora y LUEGO escucha.
   const activate = useCallback(() => {
     const s = useCommandCenter.getState()
-    const wasAwake = s.awake
+    // Si ya está activo (o hablando), NO reiniciar nada: evitaría cortar el saludo a medias.
+    if (s.awake) return
     s.setAwake(true)
-    if (!wasAwake && s.voiceOutput) {
-      const h = new Date().getHours()
-      const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
-      const greeting = `${saludo}. ¿En qué podemos ayudarte?`
-      s.setGreeting(greeting)
+    const h = new Date().getHours()
+    const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
+    const greeting = `${saludo}. ¿En qué podemos ayudarte?`
+    s.setGreeting(greeting)
+    if (s.voiceOutput) {
       // Saluda y SOLO al terminar empieza a escuchar (startListening cancelaría el saludo si fuera antes).
       speakRef.current(greeting, () => startListening())
-      return
+    } else {
+      startListening()
     }
-    if (!wasAwake) {
-      const h = new Date().getHours()
-      const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
-      s.setGreeting(`${saludo}. ¿En qué podemos ayudarte?`)
-    }
-    if (!voice.listening) startListening()
-  }, [voice.listening, startListening])
+  }, [startListening])
   const activateRef = useRef(activate)
   activateRef.current = activate
 
@@ -308,9 +305,10 @@ export function useHermes() {
     onWake: startListening,
   })
 
-  // Activación por DOBLE APLAUSO → ignición (despierta, saluda y escucha).
+  // Activación por DOBLE APLAUSO → ignición. SOLO en standby (no despierto): así la propia voz de
+  // Hermes (saludo/respuesta) no dispara un "aplauso" falso que reactivaría y cortaría el audio.
   useClapDetection({
-    enabled: clapEnabled,
+    enabled: clapEnabled && !awake && !voice.speaking,
     onDoubleClap: () => activateRef.current(),
   })
 
