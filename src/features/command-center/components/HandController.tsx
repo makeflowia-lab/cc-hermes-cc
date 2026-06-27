@@ -22,7 +22,7 @@ const MODEL_URL =
 const importESM = (u: string) =>
   (new Function('u', 'return import(u)') as (u: string) => Promise<Record<string, unknown>>)(u)
 
-type Gesture = 'pinch' | 'fist' | 'thumb' | null
+type Gesture = 'pinch' | 'fist' | 'thumb' | 'two' | null
 type Cursor = { x: number; y: number; gesture: Gesture }
 type Pt = { x: number; y: number }
 
@@ -30,6 +30,12 @@ function winIdAt(x: number, y: number): string | null {
   const el = document.elementFromPoint(x, y) as HTMLElement | null
   const w = el?.closest?.('[data-win-id]') as HTMLElement | null
   return w?.dataset.winId ?? null
+}
+
+// Pausa el video de YouTube embebido en una ventana (IFrame API).
+function pauseVideoIn(id: string) {
+  const iframe = document.querySelector(`[data-win-id="${id}"] iframe`) as HTMLIFrameElement | null
+  iframe?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*')
 }
 
 export function HandController() {
@@ -53,6 +59,9 @@ export function HandController() {
     let armed = false // un gesto (puño/pulgar) solo cuenta tras ver la mano ABIERTA (evita falsos positivos)
     let fistFrames = 0
     let thumbFrames = 0
+    let twoFrames = 0 // 2 dedos sostenidos (pausar video)
+    let swipeStart: Pt | null = null // posición inicial de la mano abierta (deslizar = siguiente/anterior)
+    let swipeFiredAt = 0
 
     ;(async () => {
       try {
@@ -111,6 +120,8 @@ export function HandController() {
             const pinches: Pt[] = []
             let fistAt: Pt | null = null
             let thumbAt: Pt | null = null
+            let twoAt: Pt | null = null
+            let openAt: Pt | null = null
             let anyOpen = false
 
             for (const lm of hands) {
@@ -132,13 +143,21 @@ export function HandController() {
                 const thumbUp =
                   lm[4].y < lm[2].y - 0.04 &&
                   Math.hypot(lm[4].x - wr.x, lm[4].y - wr.y) > Math.hypot(lm[3].x - wr.x, lm[3].y - wr.y)
-                if (fingersOpen) anyOpen = true
+                // 2 DEDOS (índice+medio extendidos, anular+meñique recogidos) → pausar.
+                const twoFingers = !curled(8, 6) && !curled(12, 10) && curled(16, 14) && curled(20, 18)
+                if (fingersOpen) {
+                  anyOpen = true
+                  if (!openAt) openAt = { x, y }
+                }
                 if (fingersCurled && thumbUp) {
                   gesture = 'thumb'
                   if (!thumbAt) thumbAt = { x, y }
                 } else if (fingersCurled) {
                   gesture = 'fist'
                   if (!fistAt) fistAt = { x, y }
+                } else if (twoFingers) {
+                  gesture = 'two'
+                  if (!twoAt) twoAt = { x, y }
                 }
               }
               cs.push({ x, y, gesture })
@@ -195,6 +214,7 @@ export function HandController() {
               if (armed && fistAt) {
                 fistFrames += 1
                 thumbFrames = 0
+                twoFrames = 0
                 if (fistFrames >= 7) {
                   const id = winIdAt(fistAt.x, fistAt.y)
                   if (id) store().removeWindow(id)
@@ -204,15 +224,41 @@ export function HandController() {
               } else if (armed && thumbAt) {
                 thumbFrames += 1
                 fistFrames = 0
+                twoFrames = 0
                 if (thumbFrames >= 7) {
                   const id = winIdAt(thumbAt.x, thumbAt.y)
                   if (id) store().setExpandedId(id) // amplía → el video hace autoplay
                   armed = false
                   thumbFrames = 0
                 }
+              } else if (twoAt) {
+                // PAUSAR video (2 dedos). No requiere armado (es inofensivo).
+                twoFrames += 1
+                fistFrames = 0
+                thumbFrames = 0
+                if (twoFrames === 7) {
+                  const id = winIdAt(twoAt.x, twoAt.y)
+                  if (id) pauseVideoIn(id)
+                }
               } else {
                 fistFrames = 0
                 thumbFrames = 0
+                twoFrames = 0
+              }
+
+              // DESLIZAR la mano abierta → siguiente (derecha) / anterior (izquierda) video.
+              if (openAt) {
+                if (!swipeStart) swipeStart = openAt
+                const dx = openAt.x - swipeStart.x
+                const now = performance.now()
+                if (Math.abs(dx) > W() * 0.28 && now - swipeFiredAt > 900) {
+                  const id = winIdAt(swipeStart.x, swipeStart.y)
+                  if (id) window.dispatchEvent(new CustomEvent('hermes-media-step', { detail: { id, dir: dx > 0 ? 1 : -1 } }))
+                  swipeFiredAt = now
+                  swipeStart = openAt
+                }
+              } else {
+                swipeStart = null
               }
             }
 
@@ -221,6 +267,8 @@ export function HandController() {
               resize = null
               fistFrames = 0
               thumbFrames = 0
+              twoFrames = 0
+              swipeStart = null
             }
             setCursors(cs)
           }
@@ -262,9 +310,25 @@ export function HandController() {
   }, [cameraId])
 
   const ringClass = (g: Gesture) =>
-    g === 'fist' ? 'h-7 w-7 border-2 bg-rose-500/40' : g === 'thumb' ? 'h-7 w-7 border-2 bg-emerald-500/40' : g === 'pinch' ? 'h-5 w-5 border-2 bg-accent/50' : 'h-9 w-9 border-2'
+    g === 'fist'
+      ? 'h-7 w-7 border-2 bg-rose-500/40'
+      : g === 'thumb'
+        ? 'h-7 w-7 border-2 bg-emerald-500/40'
+        : g === 'two'
+          ? 'h-7 w-7 border-2 bg-amber-400/40'
+          : g === 'pinch'
+            ? 'h-5 w-5 border-2 bg-accent/50'
+            : 'h-9 w-9 border-2'
   const ringColor = (g: Gesture) =>
-    g === 'fist' ? 'rgb(244,63,94)' : g === 'thumb' ? 'rgb(16,185,129)' : g === 'pinch' ? 'rgb(var(--hermes-accent))' : 'rgba(255,255,255,0.75)'
+    g === 'fist'
+      ? 'rgb(244,63,94)'
+      : g === 'thumb'
+        ? 'rgb(16,185,129)'
+        : g === 'two'
+          ? 'rgb(251,191,36)'
+          : g === 'pinch'
+            ? 'rgb(var(--hermes-accent))'
+            : 'rgba(255,255,255,0.75)'
 
   return (
     <>
@@ -289,6 +353,7 @@ export function HandController() {
           >
             {c.gesture === 'fist' && <span className="text-[10px] font-bold text-white">✕</span>}
             {c.gesture === 'thumb' && <span className="text-[10px] font-bold text-white">▶</span>}
+            {c.gesture === 'two' && <span className="text-[10px] font-bold text-white">⏸</span>}
           </div>
         </div>
       ))}

@@ -15,13 +15,26 @@ export interface WinRect {
 }
 
 /** Media (imágenes en cuadrícula o video de YouTube embebido). */
-function MediaView({ media, expanded }: { media: NonNullable<FloatingWin['media']>; expanded: boolean }) {
+function MediaView({ media, expanded, winId }: { media: NonNullable<FloatingWin['media']>; expanded: boolean; winId: string }) {
   const [sel, setSel] = useState(0)
   const [picked, setPicked] = useState(false)
   // Al ampliar, fija autoplay para que reducir NO recargue/detenga el video (key estable).
   useEffect(() => {
     if (expanded) setPicked(true)
   }, [expanded])
+  // Gesto "deslizar mano abierta" → siguiente/anterior video (evento desde HandController).
+  useEffect(() => {
+    const onStep = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; dir: number }
+      if (d?.id !== winId) return
+      const n = media.items.length
+      if (!n) return
+      setSel((s) => (s + (d.dir > 0 ? 1 : -1) + n) % n)
+      setPicked(true)
+    }
+    window.addEventListener('hermes-media-step', onStep as EventListener)
+    return () => window.removeEventListener('hermes-media-step', onStep as EventListener)
+  }, [winId, media.items.length])
 
   if (media.kind === 'video') {
     const cur = media.items[Math.min(sel, media.items.length - 1)]
@@ -34,7 +47,7 @@ function MediaView({ media, expanded }: { media: NonNullable<FloatingWin['media'
             <iframe
               key={cur.id + (autoplay ? '-a' : '')}
               className="absolute inset-0 h-full w-full"
-              src={`https://www.youtube-nocookie.com/embed/${cur.id}?rel=0&modestbranding=1&playsinline=1${autoplay}`}
+              src={`https://www.youtube-nocookie.com/embed/${cur.id}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1${autoplay}`}
               title={cur.title || 'Video'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
@@ -170,7 +183,7 @@ export function FloatingWindow({ win, rect, expanded = false }: { win: FloatingW
           </div>
         ) : hasMedia ? (
           <div className={cn('h-full', win.media!.kind === 'video' ? 'p-2' : '')}>
-            <MediaView media={win.media!} expanded={expanded} />
+            <MediaView media={win.media!} expanded={expanded} winId={win.id} />
           </div>
         ) : win.content ? (
           <p className="whitespace-pre-wrap">{win.content}</p>
