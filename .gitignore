@@ -13,6 +13,11 @@ next-env.d.ts
 
 # misc
 .DS_Store
+
+# scripts temporales de captura/verificación
+_shot*.mjs
+.env.vercelcheck
+.env.vc*
 *.pem
 
 # debug
