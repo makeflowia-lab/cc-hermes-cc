@@ -312,7 +312,8 @@ export function useHermes() {
     s.setAwake(true)
     const h = new Date().getHours()
     const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
-    const name = s.operatorName?.trim()
+    // Prioriza el nombre RECONOCIDO por la cámara; si no, el configurado.
+    const name = (s.recognizedName?.trim() || s.operatorName?.trim()) ?? ''
     const greeting = name ? `${saludo}, ${name}. ¿En qué podemos ayudarte?` : `${saludo}. ¿En qué podemos ayudarte?`
     s.setGreeting(greeting)
     if (s.voiceOutput) {

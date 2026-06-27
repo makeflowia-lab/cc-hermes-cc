@@ -73,6 +73,13 @@ interface CommandCenterState {
   setGestureEnabled: (b: boolean) => void
   toggleGesture: () => void
 
+  // RECONOCIMIENTO FACIAL (cámara te identifica y saluda por nombre). Opt-in.
+  faceEnabled: boolean
+  setFaceEnabled: (b: boolean) => void
+  toggleFace: () => void
+  recognizedName: string | null // nombre de la persona reconocida ahora mismo (o null)
+  setRecognizedName: (n: string | null) => void
+
   // Standby → "se inicia con 2 aplausos". Hasta activarse, solo el cerebro en pantalla.
   awake: boolean
   setAwake: (v: boolean) => void
@@ -90,6 +97,9 @@ interface CommandCenterState {
   updateWindow: (id: string, patch: Partial<FloatingWin>) => void
   removeWindow: (id: string) => void
   clearWindows: () => void
+  // Ventana AMPLIADA (zoom): una a la vez, grande y centrada sobre el resto.
+  expandedId: string | null
+  setExpandedId: (id: string | null) => void
 }
 
 export interface MediaItem {
@@ -170,6 +180,12 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   setGestureEnabled: (gestureEnabled) => set({ gestureEnabled }),
   toggleGesture: () => set((s) => ({ gestureEnabled: !s.gestureEnabled })),
 
+  faceEnabled: false,
+  setFaceEnabled: (faceEnabled) => set({ faceEnabled }),
+  toggleFace: () => set((s) => ({ faceEnabled: !s.faceEnabled })),
+  recognizedName: null,
+  setRecognizedName: (recognizedName) => set({ recognizedName }),
+
   awake: false,
   setAwake: (awake) => set({ awake }),
   greeting: '',
@@ -185,6 +201,9 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   addWindow: (w) => set((s) => ({ windows: [...s.windows, w] })),
   updateWindow: (id, patch) =>
     set((s) => ({ windows: s.windows.map((w) => (w.id === id ? { ...w, ...patch } : w)) })),
-  removeWindow: (id) => set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
-  clearWindows: () => set({ windows: [] }),
+  removeWindow: (id) =>
+    set((s) => ({ windows: s.windows.filter((w) => w.id !== id), expandedId: s.expandedId === id ? null : s.expandedId })),
+  clearWindows: () => set({ windows: [], expandedId: null }),
+  expandedId: null,
+  setExpandedId: (expandedId) => set({ expandedId }),
 }))

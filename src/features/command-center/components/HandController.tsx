@@ -26,7 +26,7 @@ export function HandController() {
   const grabRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const [status, setStatus] = useState<'loading' | 'camera' | 'ready' | 'error'>('loading')
   const [errMsg, setErrMsg] = useState('No se pudo iniciar la cámara')
-  const [cursor, setCursor] = useState({ x: 0, y: 0, pinch: false, visible: false })
+  const [cursor, setCursor] = useState({ x: 0, y: 0, pinch: false, closing: false, visible: false })
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +36,7 @@ export function HandController() {
     let landmarker: any = null
     let lastVideoTime = -1
     let pinching = false // histéresis
+    let fistFrames = 0 // cuadros seguidos con la mano cerrada (gesto de cerrar ventana)
     let gotCamera = false
 
     // Empieza/continúa/termina el "agarre" de una ventana bajo el cursor.
@@ -136,11 +137,31 @@ export function HandController() {
               const ratio = Math.hypot(thumb.x - index.x, thumb.y - index.y) / handSize
               pinching = pinching ? ratio < 0.85 : ratio < 0.55 // histéresis (evita parpadeo)
               handlePinch(x, y, pinching)
-              setCursor({ x, y, pinch: pinching, visible: true })
+
+              // PUÑO = cerrar ventana: dedos medio/anular/meñique recogidos hacia la muñeca (y sin pellizcar).
+              let closing = false
+              if (lm.length >= 21 && !pinching) {
+                const curl = (tip: number) => Math.hypot(lm[tip].x - lm[0].x, lm[tip].y - lm[0].y) / handSize
+                if (curl(12) < 1.2 && curl(16) < 1.1 && curl(20) < 1.0) closing = true
+              }
+              if (closing) {
+                fistFrames += 1
+                if (fistFrames === 8) {
+                  // cierra la ventana bajo la mano (una sola vez por puño)
+                  const el = document.elementFromPoint(x, y) as HTMLElement | null
+                  const winEl = el?.closest('[data-win-id]') as HTMLElement | null
+                  if (winEl?.dataset.winId) useCommandCenter.getState().removeWindow(winEl.dataset.winId)
+                }
+              } else {
+                fistFrames = 0
+              }
+
+              setCursor({ x, y, pinch: pinching, closing, visible: true })
             } else {
               grabRef.current = null
               pinching = false
-              setCursor((c) => (c.visible ? { ...c, visible: false, pinch: false } : c))
+              fistFrames = 0
+              setCursor((c) => (c.visible ? { ...c, visible: false, pinch: false, closing: false } : c))
             }
           }
           raf = requestAnimationFrame(loop)
@@ -198,16 +219,20 @@ export function HandController() {
         >
           <div
             className={cn(
-              'rounded-full transition-all duration-100',
-              cursor.pinch ? 'h-5 w-5 border-2 bg-accent/50' : 'h-9 w-9 border-2',
+              'flex items-center justify-center rounded-full transition-all duration-100',
+              cursor.closing ? 'h-7 w-7 border-2 bg-rose-500/40' : cursor.pinch ? 'h-5 w-5 border-2 bg-accent/50' : 'h-9 w-9 border-2',
             )}
             style={{
-              borderColor: cursor.pinch ? 'rgb(var(--hermes-accent))' : 'rgba(255,255,255,0.75)',
-              boxShadow: cursor.pinch
-                ? '0 0 16px rgb(var(--hermes-accent) / 0.8)'
-                : '0 0 10px rgba(255,255,255,0.4)',
+              borderColor: cursor.closing ? 'rgb(244,63,94)' : cursor.pinch ? 'rgb(var(--hermes-accent))' : 'rgba(255,255,255,0.75)',
+              boxShadow: cursor.closing
+                ? '0 0 16px rgba(244,63,94,0.8)'
+                : cursor.pinch
+                  ? '0 0 16px rgb(var(--hermes-accent) / 0.8)'
+                  : '0 0 10px rgba(255,255,255,0.4)',
             }}
-          />
+          >
+            {cursor.closing && <span className="text-[10px] font-bold text-white">✕</span>}
+          </div>
         </div>
       )}
 

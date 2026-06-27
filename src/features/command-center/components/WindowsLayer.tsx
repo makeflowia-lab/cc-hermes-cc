@@ -11,6 +11,8 @@ import { FloatingWindow, type WinRect } from './FloatingWindow'
  */
 export function WindowsLayer() {
   const windows = useCommandCenter((s) => s.windows)
+  const expandedId = useCommandCenter((s) => s.expandedId)
+  const setExpandedId = useCommandCenter((s) => s.setExpandedId)
   const [vp, setVp] = useState({ w: 1600, h: 900 })
 
   useEffect(() => {
@@ -36,7 +38,16 @@ export function WindowsLayer() {
   const gridH = rows * cellH + gap * (rows - 1)
   const startY = padTop + Math.max(0, (availH - gridH) / 2)
 
+  // Rect de una ventana AMPLIADA (zoom): grande y centrada.
+  const expandedRect: WinRect = {
+    x: Math.round(vp.w * 0.05),
+    y: Math.round(vp.h * 0.06),
+    w: Math.round(vp.w * 0.9),
+    h: Math.round(vp.h * 0.86),
+  }
+
   const rects: WinRect[] = windows.map((win, i) => {
+    if (win.id === expandedId) return expandedRect
     const row = Math.floor(i / cols)
     const col = i % cols
     const itemsInRow = row === rows - 1 ? n - cols * (rows - 1) : cols
@@ -49,9 +60,18 @@ export function WindowsLayer() {
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
+      {/* Telón al ampliar: clic para volver al mosaico */}
+      {expandedId && (
+        <button
+          type="button"
+          aria-label="Cerrar vista ampliada"
+          onClick={() => setExpandedId(null)}
+          className="pointer-events-auto absolute inset-0 bg-black/70 backdrop-blur-sm"
+        />
+      )}
       <AnimatePresence>
         {windows.map((w, i) => (
-          <FloatingWindow key={w.id} win={w} rect={rects[i]} />
+          <FloatingWindow key={w.id} win={w} rect={rects[i]} expanded={w.id === expandedId} />
         ))}
       </AnimatePresence>
     </div>

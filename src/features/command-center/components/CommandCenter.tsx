@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MotionConfig } from 'framer-motion'
-import { Hand, Volume2, VolumeX, Maximize2, Minimize2, Settings, Camera } from 'lucide-react'
+import { Hand, Volume2, VolumeX, Maximize2, Minimize2, Settings, Camera, ScanFace } from 'lucide-react'
 import { useHermes } from '../hooks/useHermes'
 import { useCommandCenter } from '../store/command-center-store'
 import { applyAccent } from '../theme'
@@ -23,6 +23,7 @@ import { VisionPanel } from './VisionPanel'
 import { DashboardOverlay } from './DashboardOverlay'
 import { WindowsLayer } from './WindowsLayer'
 import { HandController } from './HandController'
+import { FaceRecognition } from './FaceRecognition'
 
 export function CommandCenter() {
   const hermes = useHermes()
@@ -45,6 +46,8 @@ export function CommandCenter() {
     toggleClap,
     gestureEnabled,
     toggleGesture,
+    faceEnabled,
+    toggleFace,
     awake,
   } = useCommandCenter()
 
@@ -173,10 +176,19 @@ export function CommandCenter() {
                   type="button"
                   onClick={toggleGesture}
                   className={cn(iconBtn, gestureEnabled && 'glass-accent')}
-                  title={gestureEnabled ? 'Gestos con cámara: ON (pellizca para mover ventanas)' : 'Gestos con cámara: OFF'}
+                  title={gestureEnabled ? 'Gestos con cámara: ON (pellizca para mover, puño para cerrar)' : 'Gestos con cámara: OFF'}
                   aria-label="Control por gestos con cámara"
                 >
                   <Camera className={cn('h-4 w-4', gestureEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFace}
+                  className={cn(iconBtn, faceEnabled && 'glass-accent')}
+                  title={faceEnabled ? 'Reconocimiento facial: ON (te saluda por nombre)' : 'Reconocimiento facial: OFF'}
+                  aria-label="Reconocimiento facial"
+                >
+                  <ScanFace className={cn('h-4 w-4', faceEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -262,8 +274,11 @@ export function CommandCenter() {
             el tablero completo ya tiene su propio flujo de conversación. */}
         {immersive && <WindowsLayer />}
 
-        {/* Control por gestos con cámara (pellizca para mover ventanas con la mano) */}
+        {/* Control por gestos con cámara (pellizca para mover, puño para cerrar) */}
         {gestureEnabled && <HandController />}
+
+        {/* Reconocimiento facial (te identifica y saluda por nombre) */}
+        {faceEnabled && <FaceRecognition />}
 
         {/* Overlays invocables */}
         <BriefingPanel open={briefingOpen} onClose={() => setBriefingOpen(false)} />

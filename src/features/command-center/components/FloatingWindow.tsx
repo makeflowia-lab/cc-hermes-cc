@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Maximize2, Minimize2 } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
 import type { FloatingWin } from '../store/command-center-store'
 import { cn } from '@/lib/utils'
@@ -15,20 +15,24 @@ export interface WinRect {
 }
 
 /** Media (imágenes en cuadrícula o video de YouTube embebido). */
-function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
+function MediaView({ media, expanded }: { media: NonNullable<FloatingWin['media']>; expanded: boolean }) {
   const [sel, setSel] = useState(0)
+  const [picked, setPicked] = useState(false)
 
   if (media.kind === 'video') {
     const cur = media.items[Math.min(sel, media.items.length - 1)]
+    // Reproduce automáticamente al ampliar o al elegir un video (gesto del usuario → el navegador lo permite).
+    const autoplay = expanded || picked ? '&autoplay=1' : ''
     return (
-      <div className="space-y-2">
-        <div className="relative w-full overflow-hidden rounded-lg bg-black/40" style={{ aspectRatio: '16 / 9' }}>
+      <div className="flex h-full flex-col gap-2">
+        <div className={cn('relative w-full overflow-hidden rounded-lg bg-black/40', expanded && 'flex-1')} style={expanded ? undefined : { aspectRatio: '16 / 9' }}>
           {cur?.id && (
             <iframe
+              key={cur.id + (autoplay ? '-a' : '')}
               className="absolute inset-0 h-full w-full"
-              src={`https://www.youtube-nocookie.com/embed/${cur.id}`}
+              src={`https://www.youtube-nocookie.com/embed/${cur.id}?rel=0&modestbranding=1&playsinline=1${autoplay}`}
               title={cur.title || 'Video'}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             />
           )}
@@ -39,7 +43,10 @@ function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
               <button
                 key={it.id ?? i}
                 type="button"
-                onClick={() => setSel(i)}
+                onClick={() => {
+                  setSel(i)
+                  setPicked(true)
+                }}
                 className={cn('shrink-0 overflow-hidden rounded border', i === sel ? 'border-accent' : 'border-hairline')}
                 title={it.title || `Video ${i + 1}`}
                 aria-label={it.title || `Ver video ${i + 1}`}
@@ -56,7 +63,7 @@ function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
 
   // Imágenes
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={cn('grid gap-2', expanded ? 'grid-cols-3' : 'grid-cols-2')}>
       {media.items.map((it, i) => (
         <a
           key={i}
@@ -73,7 +80,7 @@ function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
             alt=""
             loading="lazy"
             referrerPolicy="no-referrer"
-            className="h-28 w-full object-cover"
+            className={cn('w-full object-cover', expanded ? 'h-44' : 'h-28')}
             onError={(e) => {
               const a = e.currentTarget.closest('a')
               if (a) a.style.display = 'none'
@@ -86,10 +93,12 @@ function MediaView({ media }: { media: NonNullable<FloatingWin['media']> }) {
 }
 
 /** Ventana del mosaico: posición/tamaño los calcula WindowsLayer (tiling). Se anima al recomponerse. */
-export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect }) {
+export function FloatingWindow({ win, rect, expanded = false }: { win: FloatingWin; rect: WinRect; expanded?: boolean }) {
   const removeWindow = useCommandCenter((s) => s.removeWindow)
+  const setExpandedId = useCommandCenter((s) => s.setExpandedId)
   const hasMedia = !!win.media && win.media.items.length > 0
   const hasMap = !!win.map
+  const canExpand = hasMedia || hasMap || !!win.content
 
   return (
     <motion.div
@@ -98,10 +107,10 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
       animate={{ opacity: 1, scale: 1, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
       exit={{ opacity: 0, scale: 0.94 }}
       // Al arrastrar con la mano (pos) sigue al cursor casi al instante; en el mosaico, resorte suave.
-      transition={win.pos ? { type: 'tween', duration: 0.06, ease: 'linear' } : { type: 'spring', damping: 28, stiffness: 240 }}
+      transition={win.pos && !expanded ? { type: 'tween', duration: 0.06, ease: 'linear' } : { type: 'spring', damping: 28, stiffness: 240 }}
       className="glass glass-accent pointer-events-auto absolute left-0 top-0 flex flex-col overflow-hidden rounded-2xl shadow-panel"
-      // Más opaca que .glass para que el contenido se lea sobre el cerebro brillante.
-      style={{ background: 'linear-gradient(180deg, rgba(13,20,36,0.93), rgba(9,15,28,0.9))' }}
+      // Más opaca que .glass para que el contenido se lea sobre el cerebro brillante. zIndex alto si está ampliada.
+      style={{ background: 'linear-gradient(180deg, rgba(13,20,36,0.93), rgba(9,15,28,0.9))', zIndex: expanded ? 50 : undefined }}
     >
       <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'rgb(var(--hermes-accent))' }} />
@@ -114,6 +123,17 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
         {win.sources && (
           <span className="rounded-full border border-state-info/30 px-1.5 text-[8px] uppercase text-state-info">fuentes</span>
         )}
+        {canExpand && (
+          <button
+            type="button"
+            onClick={() => setExpandedId(expanded ? null : win.id)}
+            title={expanded ? 'Reducir' : 'Ampliar (zoom)'}
+            aria-label={expanded ? 'Reducir ventana' : 'Ampliar ventana'}
+            className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-white/10 hover:text-accent"
+          >
+            {expanded ? <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => removeWindow(win.id)}
@@ -125,7 +145,7 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
         </button>
       </div>
 
-      <div className={cn('flex-1 overflow-y-auto text-sm leading-relaxed text-slate-100', hasMap ? 'p-0' : 'px-4 py-3')}>
+      <div className={cn('flex-1 overflow-y-auto text-sm leading-relaxed text-slate-100', hasMap || (hasMedia && win.media!.kind === 'video') ? 'p-0' : 'px-4 py-3')}>
         {hasMap ? (
           <div className="flex h-full flex-col">
             <iframe
@@ -145,7 +165,9 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
             </a>
           </div>
         ) : hasMedia ? (
-          <MediaView media={win.media!} />
+          <div className={cn('h-full', win.media!.kind === 'video' ? 'p-2' : '')}>
+            <MediaView media={win.media!} expanded={expanded} />
+          </div>
         ) : win.content ? (
           <p className="whitespace-pre-wrap">{win.content}</p>
         ) : (
@@ -159,7 +181,7 @@ export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect 
                 />
               ))}
             </span>
-            {win.media ? 'Buscando…' : 'Hermes está respondiendo…'}
+            {win.media || win.map ? 'Buscando…' : 'Hermes está respondiendo…'}
           </p>
         )}
       </div>
