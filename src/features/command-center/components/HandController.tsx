@@ -25,6 +25,7 @@ export function HandController() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const grabRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const [status, setStatus] = useState<'loading' | 'camera' | 'ready' | 'error'>('loading')
+  const [errMsg, setErrMsg] = useState('No se pudo iniciar la cámara')
   const [cursor, setCursor] = useState({ x: 0, y: 0, pinch: false, visible: false })
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function HandController() {
     let landmarker: any = null
     let lastVideoTime = -1
     let pinching = false // histéresis
+    let gotCamera = false
 
     // Empieza/continúa/termina el "agarre" de una ventana bajo el cursor.
     const handlePinch = (x: number, y: number, pinch: boolean) => {
@@ -55,10 +57,25 @@ export function HandController() {
       }
     }
 
+    // getUserMedia con reintentos: NotReadableError/AbortError suelen ser transitorios
+    // (cámara recién liberada, o doble montaje de StrictMode en dev) → reintenta unas veces.
+    const getCamera = async (): Promise<MediaStream> => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        } catch (e) {
+          const name = (e as { name?: string })?.name
+          const transient = name === 'NotReadableError' || name === 'AbortError'
+          if (attempt >= 4 || !transient) throw e
+          await new Promise((r) => setTimeout(r, 600))
+        }
+      }
+    }
+
     ;(async () => {
       try {
         // 1) Cámara PRIMERO → vista previa inmediata (no esperar al modelo).
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        stream = await getCamera()
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop())
           return
@@ -67,21 +84,32 @@ export function HandController() {
         if (!video) return
         video.srcObject = stream
         await video.play().catch(() => {})
+        gotCamera = true
         if (!cancelled) setStatus('camera')
 
-        // 2) Modelo de mano en segundo plano (CDN). La detección arranca cuando esté listo.
-        const vision = await importESM(ESM_URL)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { HandLandmarker, FilesetResolver } = vision as any
-        const fileset = await FilesetResolver.forVisionTasks(WASM_URL)
-        const makeLandmarker = (delegate: 'GPU' | 'CPU') =>
-          HandLandmarker.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: MODEL_URL, delegate },
-            runningMode: 'VIDEO',
-            numHands: 1,
-          })
-        // Intenta GPU; si falla (drivers/SO), cae a CPU para no quedarse sin gestos.
-        landmarker = await makeLandmarker('GPU').catch(() => makeLandmarker('CPU'))
+        // 2) Modelo de mano en segundo plano (CDN). Se reintenta: la descarga del WASM/modelo (varios MB)
+        //    puede abortarse por red inestable ("wasm streaming compile failed").
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const vision = await importESM(ESM_URL)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { HandLandmarker, FilesetResolver } = vision as any
+            const fileset = await FilesetResolver.forVisionTasks(WASM_URL)
+            const makeLandmarker = (delegate: 'GPU' | 'CPU') =>
+              HandLandmarker.createFromOptions(fileset, {
+                baseOptions: { modelAssetPath: MODEL_URL, delegate },
+                runningMode: 'VIDEO',
+                numHands: 1,
+              })
+            // Intenta GPU; si falla (drivers/SO), cae a CPU para no quedarse sin gestos.
+            landmarker = await makeLandmarker('GPU').catch(() => makeLandmarker('CPU'))
+            break
+          } catch (e) {
+            if (cancelled) return
+            if (attempt >= 3) throw e
+            await new Promise((r) => setTimeout(r, 1000)) // reintenta la descarga
+          }
+        }
         if (cancelled) return
         setStatus('ready')
 
@@ -120,7 +148,21 @@ export function HandController() {
         loop()
       } catch (e) {
         console.error('[hand]', e)
-        if (!cancelled) setStatus('error')
+        if (!cancelled) {
+          const name = (e as { name?: string })?.name
+          setErrMsg(
+            gotCamera
+              ? 'No se pudo cargar la detección de mano (red inestable). Reactiva los gestos para reintentar.'
+              : name === 'NotReadableError'
+                ? 'La cámara está en uso por otra app o pestaña. Ciérrala y reactiva los gestos.'
+                : name === 'NotAllowedError'
+                  ? 'Permiso de cámara denegado. Habilítalo en el navegador.'
+                  : name === 'NotFoundError'
+                    ? 'No se encontró ninguna cámara.'
+                    : 'No se pudo iniciar la cámara.',
+          )
+          setStatus('error')
+        }
       }
     })()
 
@@ -171,12 +213,12 @@ export function HandController() {
 
       {/* Estado */}
       {status !== 'ready' && (
-        <div className="pointer-events-none fixed bottom-28 right-3 z-[60] rounded-md bg-black/70 px-2 py-1 text-[10px] text-slate-300">
+        <div className="pointer-events-none fixed bottom-28 right-3 z-[60] max-w-[220px] rounded-md bg-black/70 px-2 py-1 text-[10px] text-slate-300">
           {status === 'loading'
             ? 'Iniciando cámara…'
             : status === 'camera'
               ? 'Cargando detección de mano…'
-              : 'No se pudo iniciar la cámara'}
+              : errMsg}
         </div>
       )}
     </>
