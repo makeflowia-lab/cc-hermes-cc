@@ -9,13 +9,19 @@ import { useEffect, useRef } from 'react'
  */
 export function useClapDetection({
   enabled,
+  paused = false,
   onDoubleClap,
 }: {
   enabled: boolean
+  paused?: boolean
   onDoubleClap: () => void
 }) {
   const cbRef = useRef(onDoubleClap)
   cbRef.current = onDoubleClap
+  // `paused` se lee por ref dentro del loop para NO reejecutar el efecto (no recrear el micrófono/AudioContext
+  // en cada frase de Hermes; en iOS eso lo dejaba suspendido y el aplauso solo servía la 1a vez).
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
@@ -68,6 +74,13 @@ export function useClapDetection({
 
         const loop = () => {
           if (cancelled) return
+          // Pausa la DETECCIÓN (no el stream) mientras Hermes habla: su voz por bocinas no debe contar como aplauso.
+          if (pausedRef.current) {
+            armed = true
+            lastClap = 0
+            raf = requestAnimationFrame(loop)
+            return
+          }
           analyser.getFloatTimeDomainData(data)
           let peak = 0
           for (let i = 0; i < data.length; i++) {

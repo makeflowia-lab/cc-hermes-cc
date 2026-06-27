@@ -344,9 +344,15 @@ export function useHermes() {
 
   // Activación por DOBLE APLAUSO → ignición. SOLO en standby (no despierto): así la propia voz de
   // Hermes (saludo/respuesta) no dispara un "aplauso" falso que reactivaría y cortaría el audio.
+  // Aplauso SIEMPRE activo (no se apaga al activarse): en standby despierta+saluda; ya activo reabre el
+  // micrófono ("aplauso o hablo → atiende"). Se pausa solo mientras Hermes habla (su voz no es un aplauso).
   useClapDetection({
-    enabled: clapEnabled && !awake && !voice.speaking,
-    onDoubleClap: () => activateRef.current(),
+    enabled: clapEnabled,
+    paused: voice.speaking,
+    onDoubleClap: () => {
+      if (awake) startListening()
+      else activateRef.current()
+    },
   })
 
   const hermesState: HermesState = voice.listening
