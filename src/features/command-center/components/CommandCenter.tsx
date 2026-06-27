@@ -20,6 +20,7 @@ import { PersonalizationDrawer } from './PersonalizationDrawer'
 import { KnowledgeDrawer } from './KnowledgeDrawer'
 import { VisionPanel } from './VisionPanel'
 import { DashboardOverlay } from './DashboardOverlay'
+import { WindowsLayer } from './WindowsLayer'
 
 export function CommandCenter() {
   const hermes = useHermes()
@@ -187,7 +188,7 @@ export function CommandCenter() {
               <button
                 type="button"
                 onClick={hermes.activate}
-                className="absolute inset-0 z-30 cursor-pointer bg-transparent"
+                className="absolute inset-0 z-10 cursor-pointer bg-transparent"
                 aria-label="Activar Hermes (aplaude dos veces o toca la pantalla)"
               />
             )}
@@ -231,6 +232,9 @@ export function CommandCenter() {
             </main>
           </div>
         )}
+
+        {/* Ventanas flotantes (info bajo demanda, tantas como se pidan) */}
+        <WindowsLayer />
 
         {/* Overlays invocables */}
         <BriefingPanel open={briefingOpen} onClose={() => setBriefingOpen(false)} />

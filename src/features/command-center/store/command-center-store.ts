@@ -74,6 +74,22 @@ interface CommandCenterState {
   // Saludo de bienvenida (se muestra como subtítulo al activar)
   greeting: string
   setGreeting: (g: string) => void
+
+  // Ventanas flotantes (DOC Módulo 1: widgets flotantes / multipantalla). Tantas como se pidan.
+  windows: FloatingWin[]
+  addWindow: (w: FloatingWin) => void
+  updateWindow: (id: string, patch: Partial<FloatingWin>) => void
+  removeWindow: (id: string) => void
+  clearWindows: () => void
+}
+
+export interface FloatingWin {
+  id: string
+  title: string
+  content: string
+  loading: boolean
+  web?: boolean
+  sources?: boolean
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({
@@ -136,4 +152,11 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   setAwake: (awake) => set({ awake }),
   greeting: '',
   setGreeting: (greeting) => set({ greeting }),
+
+  windows: [],
+  addWindow: (w) => set((s) => ({ windows: [...s.windows, w] })),
+  updateWindow: (id, patch) =>
+    set((s) => ({ windows: s.windows.map((w) => (w.id === id ? { ...w, ...patch } : w)) })),
+  removeWindow: (id) => set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
+  clearWindows: () => set({ windows: [] }),
 }))

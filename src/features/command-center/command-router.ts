@@ -12,6 +12,7 @@ export type UiCommand =
   | { kind: 'tablero' }
   | { kind: 'completo' }
   | { kind: 'ocultar' }
+  | { kind: 'cerrar_ventanas' }
   | { kind: 'mode'; mode: Mode }
 
 export interface RoutedCommand {
@@ -26,6 +27,10 @@ export function interpretUiCommand(text: string): RoutedCommand | null {
     .replace(/[̀-ͯ]/g, '') // sin acentos para robustez
   const has = (...ws: string[]) => ws.some((w) => t.includes(w))
   const reveal = has('muestra', 'muestrame', 'abre', 'abreme', 'abrir', 'ver el', 'ver los', 'ver las', 'despliega', 'ensename', 'saca', 'pon el', 'pon los', 'dame el', 'dame los')
+
+  // Cerrar ventanas flotantes
+  if (has('cierra las ventanas', 'cierra ventanas', 'limpia ventanas', 'cierra la ventana', 'quita las ventanas', 'borra las ventanas'))
+    return { cmd: { kind: 'cerrar_ventanas' }, ack: 'Cerré las ventanas.' }
 
   // Ocultar / despejar → solo el cerebro
   if (has('oculta', 'ocultar', 'limpia', 'limpiar', 'cierra todo', 'despeja', 'solo el cerebro', 'modo limpio', 'modo inmersivo'))

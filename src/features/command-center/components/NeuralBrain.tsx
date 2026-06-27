@@ -239,25 +239,7 @@ export function NeuralBrain({
     const synapses = new THREE.LineSegments(lineGeo, lineMat)
     group.add(synapses)
 
-    // ---------- Filamentos radiales ----------
-    const tendrilPos: number[] = []
-    for (let i = 0; i < 150; i++) {
-      const base = pts[Math.floor(Math.random() * pts.length)]
-      const dir = base.clone().normalize()
-      const tip = base.clone().add(dir.multiplyScalar(0.6 + Math.random() * 1.5))
-      tendrilPos.push(base.x, base.y, base.z, tip.x, tip.y, tip.z)
-    }
-    const tendrilGeo = new THREE.BufferGeometry()
-    tendrilGeo.setAttribute('position', new THREE.Float32BufferAttribute(tendrilPos, 3))
-    const tendrilMat = new THREE.LineBasicMaterial({
-      color: 0x9fd8ff,
-      transparent: true,
-      opacity: 0.1,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    })
-    const tendrils = new THREE.LineSegments(tendrilGeo, tendrilMat)
-    group.add(tendrils)
+    // (Sin filamentos radiales: el usuario pidió dejar SOLO el cerebro, sin las líneas que salían detrás.)
 
     // ---------- Núcleo + onda de choque (glow texture) ----------
     const glowCanvas = document.createElement('canvas')
@@ -355,8 +337,6 @@ export function NeuralBrain({
       pointsMat.dispose()
       lineGeo.dispose()
       lineMat.dispose()
-      tendrilGeo.dispose()
-      tendrilMat.dispose()
       coreMat.dispose()
       shockMat.dispose()
       glowTex.dispose()

@@ -45,6 +45,7 @@ export function useHermes() {
   const askRef = useRef<(t: string) => void>(() => {})
   const resumeRef = useRef<() => void>(() => {})
   const deactivateRef = useRef<() => void>(() => {})
+  const currentWindowIdRef = useRef<string | null>(null)
 
   const transport = useMemo(
     () => new DefaultChatTransport<HermesUIMessage>({ api: '/api/hermes' }),
@@ -65,6 +66,17 @@ export function useHermes() {
         if (meta.conversationId) setConversationId(meta.conversationId)
       }
       const text = textOf(message)
+      // Vuelca la respuesta final en su ventana flotante.
+      const id = currentWindowIdRef.current
+      if (id) {
+        useCommandCenter.getState().updateWindow(id, {
+          content: text,
+          loading: false,
+          web: meta?.usedWeb,
+          sources: meta?.usedSources,
+        })
+        currentWindowIdRef.current = null
+      }
       // Tras responder: si la voz está activa, habla y AL TERMINAR vuelve a escuchar (bucle continuo).
       if (useCommandCenter.getState().voiceOutput && text) speakRef.current(text, () => resumeRef.current())
       else resumeRef.current()
@@ -93,6 +105,15 @@ export function useHermes() {
   const lastMessage = chat.messages[chat.messages.length - 1]
   const streamingMeta =
     lastMessage?.role === 'assistant' ? (lastMessage.metadata as HermesMeta | undefined) : undefined
+  // Transmite el texto en streaming a la ventana flotante activa (se va llenando en vivo).
+  const lastAssistantText = lastMessage?.role === 'assistant' ? textOf(lastMessage) : ''
+  useEffect(() => {
+    const id = currentWindowIdRef.current
+    if (id && lastAssistantText) {
+      useCommandCenter.getState().updateWindow(id, { content: lastAssistantText, loading: false })
+    }
+  }, [lastAssistantText])
+
   const specialistsKey = streamingMeta?.specialists?.join(',') ?? ''
   const convKey = streamingMeta?.conversationId ?? ''
   useEffect(() => {
@@ -137,7 +158,11 @@ export function useHermes() {
             s.setPersonalizationOpen(false)
             s.setBriefingOpen(false)
             s.setDashboardOpen(false)
+            s.clearWindows()
             s.setImmersive(true)
+            break
+          case 'cerrar_ventanas':
+            s.clearWindows()
             break
           case 'mode':
             s.setMode(routed.cmd.mode)
@@ -150,6 +175,11 @@ export function useHermes() {
       }
 
       s.setGreeting('') // el saludo cede ante la conversación real
+      // Abre una VENTANA FLOTANTE para esta consulta; la respuesta se transmite ahí (varias a la vez).
+      const winId =
+        typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `w-${Date.now()}`
+      s.addWindow({ id: winId, title: t.length > 64 ? `${t.slice(0, 64)}…` : t, content: '', loading: true })
+      currentWindowIdRef.current = winId
       chat.sendMessage({ text }, { body: { mode: s.mode, conversationId: s.conversationId } })
     },
     [chat],
