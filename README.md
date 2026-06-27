@@ -27,14 +27,20 @@ Construido con la **SaaS Factory V5** (Golden Path) en una sola sesión. Esta en
 
 | Capa | Tecnología |
 |------|------------|
-| Framework | Next.js 16 + React 19 + TypeScript |
-| Estilos | Tailwind CSS 3.4 + animaciones Framer Motion |
+| Framework | Next.js 16 (App Router + Turbopack) + React 19 + TypeScript |
+| Estilos | Tailwind CSS 3.4 + animaciones Framer Motion + iconos lucide-react |
+| 3D / visual | Three.js 0.171 (cerebro neuronal, shaders/partículas) |
 | IA | Vercel AI SDK v5 + OpenRouter |
 | Modelo conversacional | **`claude-opus-4.1`** (el mejor — síntesis estratégica) |
-| Routing / clasificación | `gemini-2.5-flash` (Intent Engine + informe estructurado) |
-| Base de datos | **Neon Postgres** (memoria, conversaciones, eventos) + pgvector listo (Fase 2) |
-| Estado | Zustand · Validación | Zod |
-| Voz | Web Speech API (STT + TTS) — cero infraestructura |
+| Routing / clasificación | `gemini-2.5-flash` (Intent Engine + informe estructurado); `gemini-2.5-pro` (JSON) |
+| Tiempo real | `perplexity/sonar` (web en vivo + fuentes) |
+| Embeddings / RAG | `openai/text-embedding-3-small` (1536) + pgvector (HNSW) |
+| Base de datos | **Neon Postgres** (memoria, conversaciones, eventos, conocimiento) |
+| Estado · Validación | Zustand · Zod |
+| Voz | **ElevenLabs** TTS (`eleven_multilingual_v2`) + Web Speech API (fallback STT/TTS) |
+| Visión / gestos | **MediaPipe Tasks-Vision** (Hand Landmarker) + **@vladmandic/face-api** (reconocimiento) — vía CDN |
+| Mapas / media | OpenStreetMap (embed) + Nominatim (geocodificación); YouTube + Bing Images (sin API key) |
+| Deploy | Vercel — **https://cc-hermes-cc.vercel.app** |
 
 > **Nota de modelos:** la conversación usa Opus 4.1 (la inteligencia con la que hablas). El informe
 > estructurado usa Gemini Flash/Pro porque los modelos Anthropic no soportan salida `json_schema`
@@ -50,7 +56,9 @@ npm run migrate     # crea las tablas en Neon (idempotente)
 npm run dev         # http://localhost:3000
 ```
 
-Variables en `.env.local` (ya configuradas): `OPENROUTER_API_KEY`, `DATABASE_URL` (Neon), `NEXT_PUBLIC_SITE_URL`.
+Variables en `.env.local` (ya configuradas): `OPENROUTER_API_KEY`, `DATABASE_URL` (Neon),
+`NEXT_PUBLIC_SITE_URL`, y para la voz natural `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`
+(opcional; sin ella la voz cae a la del navegador).
 
 Verificación rápida: `GET /api/health` debe responder `db.ok` y `model.ok` en `true`.
 
@@ -115,6 +123,44 @@ src/
 **Fase 4 — Consejo multi-agente REAL:** en consultas profundas, los especialistas relevantes **deliberan en paralelo** (modelo rápido) y el **Coordinador (Opus 4.1) sintetiza** una sola respuesta; badge "Consejo: N especialistas". **Simulación de escenarios** (Módulo 8): "¿qué pasa si…?" → escenario base vs alternativo + impacto/probabilidad.
 
 **Fase 5 — War Room + Visión:** modos **War Room / Crisis (viñeta roja) / Presentación** que reconfiguran el layout y el comportamiento del cerebro; **Visión opt-in** (cámara local + FaceDetector para presencia, apagada por defecto, con aviso de privacidad).
+
+## 🖐️ Interacción multimodal avanzada (Jarvis real)
+
+Capa de interacción añadida sobre Hermes Core. Todo es **opt-in** (iconos en el encabezado; configurables
+en Personalización) y la cámara/voz por gestos funciona mejor en **Chrome de escritorio**.
+
+**Voz natural (ElevenLabs).** Las respuestas y el saludo se hablan con voz neuronal (`eleven_multilingual_v2`,
+voz por defecto "Brian"). Si la nube falla (p. ej. cuota gratis agotada) cae **consistentemente** a la voz del
+navegador, sin brincar entre dos voces. Ruta `/api/tts`.
+
+**Saludo por nombre + reconocimiento facial.** Pones tu nombre en Personalización; con el rostro encendido,
+registras tu cara una vez (face-api.js, descriptor en el dispositivo) y Hermes te identifica por cámara y te
+saluda **"Hola, [nombre]"**.
+
+**Ventanas inteligentes (mosaico).** Hermes **decide** qué mostrar: las preguntas del sistema se contestan por
+voz (sin ventana); los pedidos de internet abren ventanas en mosaico:
+- **Imágenes** ("muéstrame fotos de…") · **Video** ("pon un video de…", YouTube embebido)
+- **Mapas** ("¿dónde está…?", "mapa de…") — OpenStreetMap con zoom y marcador
+- **Texto** ("muéstrame en una ventana…") — la respuesta del LLM
+- Botón **ampliar (zoom)** en cada ventana; cerrar/limpiar por voz ("cierra las ventanas", "oculta todo").
+
+**Control por gestos con la mano (MediaPipe).** Cursor en la punta del índice; cada gesto destructivo se "arma"
+abriendo la mano antes (evita disparos accidentales):
+
+| Gesto | Acción |
+|---|---|
+| 🤏 1 mano pellizco | Mover ventana |
+| 🤲 2 manos pellizco (separar/juntar) | Redimensionar / maximizar |
+| ☝️ 1 dedo | Cerrar ventana |
+| ✌️ 2 dedos | Pausar video |
+| 👍 Pulgar arriba | Reproducir / reanudar / ampliar |
+| 👋 Mano abierta deslizando | Siguiente / anterior video |
+
+**Cámara elegible** (integrada vs USB) e **iconos de control configurables** (aplausos, gestos, rostro, voz,
+configuración) desde Personalización.
+
+> Nota: Safari de iPhone no soporta el dictado por voz (Web Speech) ni todos los gestos; usa Chrome de
+> computadora para la experiencia completa.
 
 ## ⏭️ Escalamientos de producción (no fases nuevas)
 
