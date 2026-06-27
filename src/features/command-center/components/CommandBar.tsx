@@ -40,6 +40,7 @@ export function CommandBar({
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    if (busy) return // no reenviar mientras Hermes responde (evita peticiones concurrentes)
     const t = input.trim()
     if (!t) return
     setInput('')
@@ -88,8 +89,8 @@ export function CommandBar({
         <input
           value={listening && interim ? interim : input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={listening ? 'Escuchando…' : 'Habla o escribe. Pregúntale cualquier cosa a Hermes…'}
-          disabled={listening}
+          placeholder={listening ? 'Escuchando…' : busy ? 'Hermes está respondiendo…' : 'Habla o escribe. Pregúntale cualquier cosa a Hermes…'}
+          disabled={listening || busy}
           aria-label="Mensaje para Hermes"
           className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
         />

@@ -228,7 +228,17 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
         body: JSON.stringify({ text: plain }),
       })
         .then(async (r) => {
-          if (!r.ok) throw new Error(`tts ${r.status}`)
+          // Solo 501 (sin key configurada) apaga la voz neuronal de forma permanente.
+          // Cualquier otro fallo (502/400/cuota/red) NO se "engancha": la próxima frase reintenta Brian.
+          if (r.status === 501) {
+            cloudDownRef.current = true
+            speakBrowser(text, onEnd)
+            return
+          }
+          if (!r.ok) {
+            speakBrowser(text, onEnd)
+            return
+          }
           const blob = await r.blob()
           const url = URL.createObjectURL(blob)
           let a = audioRef.current
@@ -254,8 +264,7 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
           })
         })
         .catch(() => {
-          // 501 (sin key) / 502 / red → no reintentar en cada frase; usa el navegador.
-          cloudDownRef.current = true
+          // Error de red puntual → reintenta en la próxima frase (sin enganchar).
           speakBrowser(text, onEnd)
         })
     },

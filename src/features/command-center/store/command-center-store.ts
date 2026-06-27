@@ -83,6 +83,12 @@ interface CommandCenterState {
   clearWindows: () => void
 }
 
+export interface MediaItem {
+  url?: string // imagen
+  id?: string // id de video de YouTube
+  title?: string
+}
+
 export interface FloatingWin {
   id: string
   title: string
@@ -90,6 +96,7 @@ export interface FloatingWin {
   loading: boolean
   web?: boolean
   sources?: boolean
+  media?: { kind: 'image' | 'video'; items: MediaItem[] }
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({

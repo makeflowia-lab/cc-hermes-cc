@@ -6,7 +6,8 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 
 const BodySchema = z.object({
-  text: z.string().min(1).max(5000),
+  // El modelo multilingüe admite ~10k caracteres por petición; recortamos a 9000 por seguridad.
+  text: z.string().min(1).max(9000),
   voiceId: z.string().max(64).optional(),
 })
 

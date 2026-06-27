@@ -7,7 +7,7 @@ import { useCommandCenter } from '../store/command-center-store'
 import { useVoice } from './useVoice'
 import { useWakeWord } from './useWakeWord'
 import { useClapDetection } from './useClapDetection'
-import { interpretUiCommand } from '../command-router'
+import { interpretUiCommand, decideDisplay } from '../command-router'
 import type { HermesMeta, HermesState } from '../types'
 
 export type HermesUIMessage = UIMessage<HermesMeta>
@@ -82,6 +82,10 @@ export function useHermes() {
       else resumeRef.current()
     },
   })
+
+  // Estado del chat en un ref para poder ignorar peticiones concurrentes sin recrear callbacks.
+  const statusRef = useRef(chat.status)
+  statusRef.current = chat.status
 
   const voice = useVoice({
     onFinalTranscript: (t) => {
@@ -174,12 +178,65 @@ export function useHermes() {
         return
       }
 
+      // No lances una nueva consulta mientras Hermes aún responde (evita corromper la ventana en curso).
+      if (statusRef.current === 'submitted' || statusRef.current === 'streaming') {
+        resumeRef.current()
+        return
+      }
+
       s.setGreeting('') // el saludo cede ante la conversación real
-      // Abre una VENTANA FLOTANTE para esta consulta; la respuesta se transmite ahí (varias a la vez).
-      const winId =
+      const newId = () =>
         typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `w-${Date.now()}`
-      s.addWindow({ id: winId, title: t.length > 64 ? `${t.slice(0, 64)}…` : t, content: '', loading: true })
-      currentWindowIdRef.current = winId
+      const titleOf = (s2: string) => (s2.length > 64 ? `${s2.slice(0, 64)}…` : s2)
+
+      // Hermes DECIDE qué mostrar: media (foto/video de internet) → ventana; "muéstrame" → ventana de
+      // texto; lo demás (sistema/estrategia) → solo voz, SIN ventana.
+      const display = decideDisplay(t)
+
+      // MEDIA: imágenes/videos desde internet → ventana con media (sin LLM).
+      if (display.kind === 'image' || display.kind === 'video') {
+        currentWindowIdRef.current = null
+        const winId = newId()
+        s.addWindow({ id: winId, title: titleOf(t), content: '', loading: true, media: { kind: display.kind, items: [] } })
+        // El ack se HABLA según el resultado real (no antes), y el bucle de escucha se reanuda en todas las ramas.
+        const done = (spoken: string) => {
+          if (useCommandCenter.getState().voiceOutput) speakRef.current(spoken, () => resumeRef.current())
+          else resumeRef.current()
+        }
+        fetch(`/api/media?type=${display.kind}&q=${encodeURIComponent(display.query)}`, {
+          signal: AbortSignal.timeout(9000),
+        })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('media'))))
+          .then((data) => {
+            const items = Array.isArray(data?.items) ? data.items : []
+            useCommandCenter.getState().updateWindow(winId, {
+              loading: false,
+              media: { kind: display.kind, items },
+              content: items.length ? '' : 'No encontré resultados para eso.',
+            })
+            done(
+              items.length
+                ? display.kind === 'video'
+                  ? 'Aquí tienes los videos.'
+                  : 'Aquí tienes las imágenes.'
+                : 'No encontré nada sobre eso.',
+            )
+          })
+          .catch(() => {
+            useCommandCenter.getState().updateWindow(winId, { loading: false, content: 'No pude buscar eso ahora.' })
+            done('No pude buscar eso ahora.')
+          })
+        return
+      }
+
+      // TEXTO: solo si pide explícitamente "muéstrame / abre una ventana". Si no, NO abre ventana (solo voz).
+      if (display.kind === 'text') {
+        const winId = newId()
+        s.addWindow({ id: winId, title: titleOf(t), content: '', loading: true })
+        currentWindowIdRef.current = winId
+      } else {
+        currentWindowIdRef.current = null
+      }
       chat.sendMessage({ text }, { body: { mode: s.mode, conversationId: s.conversationId } })
     },
     [chat],
