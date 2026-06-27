@@ -18,9 +18,10 @@ La métrica no es "features" sino **capacidad**.
 - F4: actúa como equipo completo de consultores (deliberación real verificada, councilSize≥2). ✅
 - F5: opera como centro de mando con modos y visión opt-in. ✅
 
-> **Las 5 fases del roadmap están entregadas.** Lo que queda son escalamientos de producción
-> (STT/TTS dedicados, cluster de agentes como microservicios, multipantalla física, multi-tenant,
-> conectores de datos en vivo, OCR/PDF/DOCX) — no fases nuevas, sino robustecer lo existente.
+> **Las 5 fases del roadmap están entregadas.** El Centro de Datos ya ingiere PDF/Word/Excel/CSV/TXT
+> (Módulo 6). Lo que queda son escalamientos de producción (STT/TTS dedicados, cluster de agentes como
+> microservicios, multipantalla física, multi-tenant, conectores de datos en vivo, OCR de imágenes/escaneos)
+> — no fases nuevas, sino robustecer lo existente.
 
 ## Riesgos críticos (y mitigación aplicada)
 1. **Sobre-ingeniería temprana** → se construyó Core primero, monolito modular, sin cluster prematuro.

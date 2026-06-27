@@ -40,10 +40,27 @@ export function KnowledgeDrawer() {
     if (knowledgeOpen) refresh()
   }, [knowledgeOpen, refresh])
 
+  // Sube cualquier archivo soportado (PDF/Word/Excel/CSV/TXT): el servidor extrae el texto.
   const onFile = async (file: File) => {
-    const text = await file.text()
-    setContent(text)
-    if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
+    setBusy(true)
+    setError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      if (title.trim()) fd.append('title', title.trim())
+      const res = await fetch('/api/knowledge/upload', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.error ?? 'Falló la subida')
+      }
+      setTitle('')
+      setContent('')
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo procesar el archivo.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const ingest = async () => {
@@ -144,20 +161,23 @@ export function KnowledgeDrawer() {
               <div className="flex items-center gap-2">
                 <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-slate-300 transition hover:bg-white/5">
                   <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                  Subir .txt / .md / .csv
+                  Subir PDF / Word / Excel / CSV / TXT
                   <input
                     type="file"
-                    accept=".txt,.md,.csv,.json,text/plain"
+                    accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.json"
                     className="hidden"
-                    onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      e.target.value = '' // permite re-subir el mismo archivo
+                      if (f) onFile(f)
+                    }}
                   />
                 </label>
                 <button
                   type="button"
                   onClick={ingest}
                   disabled={busy || !title.trim() || !content.trim()}
-                  aria-busy={busy ? 'true' : 'false'}
-                  className="ml-auto rounded-lg px-4 py-1.5 text-xs font-medium text-white transition disabled:opacity-40"
+                  className="ml-auto rounded-lg px-4 py-1.5 text-xs font-medium text-white transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   style={{ background: 'rgb(var(--hermes-accent) / 0.85)' }}
                 >
                   {busy ? 'Indexando…' : 'Indexar'}

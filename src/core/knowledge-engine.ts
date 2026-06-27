@@ -43,16 +43,25 @@ export function chunkText(text: string, size = 900, overlap = 150): string[] {
   return chunks
 }
 
+// Tope de texto por documento (~1 MB ≈ ~1300 chunks) para acotar costo/tiempo de embeddings
+// y evitar que un archivo enorme dispare miles de inputs. Lo excedente se marca como truncado.
+const MAX_CHARS_PER_DOC = 1_000_000
+
 /** Ingesta un documento: chunk → embed → guarda en pgvector. Devuelve número de chunks. */
 export async function ingestDocument(args: {
   tenantId: string
   title: string
   source?: string
   content: string
-}): Promise<{ chunks: number }> {
+}): Promise<{ chunks: number; truncated: boolean }> {
   const { tenantId, title, source = 'manual', content } = args
-  const chunks = chunkText(content)
-  if (chunks.length === 0) return { chunks: 0 }
+  const truncated = content.length > MAX_CHARS_PER_DOC
+  const text = truncated ? content.slice(0, MAX_CHARS_PER_DOC) : content
+  const chunks = chunkText(text)
+  if (chunks.length === 0) return { chunks: 0, truncated }
+  if (truncated) {
+    console.warn(`[knowledge] "${title}" truncado a ${MAX_CHARS_PER_DOC} chars (${chunks.length} chunks)`)
+  }
 
   const vectors = await embedTexts(chunks)
   const sql = getSql()
@@ -69,7 +78,7 @@ export async function ingestDocument(args: {
         ${sql.json({ chunkIndex: i, total: chunks.length } as JsonValue)}
       )`
   }
-  return { chunks: chunks.length }
+  return { chunks: chunks.length, truncated }
 }
 
 /** Búsqueda semántica: top-K chunks por distancia coseno. */

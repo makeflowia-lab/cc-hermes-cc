@@ -14,10 +14,18 @@ export async function embedText(value: string): Promise<number[]> {
   return embedding
 }
 
+// El provider OpenRouter no define maxEmbeddingsPerCall, así que el AI SDK mandaría TODOS los
+// inputs en una sola petición (falla por encima de ~2048). Por eso loteamos manualmente.
+const EMBED_BATCH = 96
+
 export async function embedTexts(values: string[]): Promise<number[][]> {
   if (values.length === 0) return []
-  const { embeddings } = await embedMany({ model, values })
-  return embeddings
+  const out: number[][] = []
+  for (let i = 0; i < values.length; i += EMBED_BATCH) {
+    const { embeddings } = await embedMany({ model, values: values.slice(i, i + EMBED_BATCH) })
+    out.push(...embeddings)
+  }
+  return out
 }
 
 /** Formato literal de pgvector: "[0.1,0.2,...]". Se castea con ::vector en la query. */

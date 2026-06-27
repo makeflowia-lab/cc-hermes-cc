@@ -92,7 +92,7 @@ src/
 - **Interfaz cinematográfica**: orbe con estados (idle/escucha/razona/responde), fondo holográfico, modos.
 
 **Fase 2 — Datos + RAG (Centro de Datos):**
-- **Ingesta de documentos** (pegar texto o subir .txt/.md/.csv) → chunking → **embeddings** (`text-embedding-3-small`, 1536) → **pgvector** (índice HNSW).
+- **Ingesta de documentos** — pegar texto o **subir PDF / Word (.docx) / Excel (.xlsx) / CSV / TXT** (Módulo 6); el servidor extrae el texto (pdfjs / mammoth / xlsx) → chunking → **embeddings** (`text-embedding-3-small`, 1536) → **pgvector** (índice HNSW).
 - **Búsqueda semántica**: cuando la consulta requiere datos, Hermes recupera los fragmentos relevantes y **razona y cita sobre datos reales** (no cifras inventadas).
 - **Centro de Datos UI**: alta/listado/borrado de documentos + conteo indexado; badge "Fuentes consultadas" en las respuestas que usan RAG.
 

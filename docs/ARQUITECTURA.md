@@ -45,7 +45,7 @@ especialista se promueve a microservicio real (la estructura ya está lista).
 | Interfaz | Next.js + Framer Motion, orbe, modos, multipanel | Multipantalla / War Room físico, gestos |
 | Orquestación | `orchestrator.ts` (routing lógico) | Agent Orchestrator + cluster distribuido |
 | Agentes | Consejo dentro de una síntesis | Cluster multi-agente (1 servicio por especialista) |
-| Datos | ✅ Neon + pgvector (HNSW) + ingesta/chunking/embeddings + búsqueda semántica (RAG) | Conectores en vivo (redes/noticias/encuestas), OCR/PDF/DOCX |
+| Datos | ✅ Neon + pgvector (HNSW) + ingesta de PDF/DOCX/XLSX/CSV/TXT (pdfjs/mammoth/xlsx) + chunking/embeddings + búsqueda semántica (RAG) | Conectores en vivo (redes/noticias/encuestas), OCR de imágenes/escaneos |
 | Voz | Web Speech API (STT/TTS navegador) | STT/TTS de baja latencia dedicados, barge-in |
 | Visión | — | Presencia, identificación opcional, contexto de sala |
 | Memoria | short/mid/long en Neon | Memoria semántica + grafo de conocimiento |

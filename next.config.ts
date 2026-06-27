@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     mcpServer: true,
   },
+  // Parsers de documentos (Módulo 6): librerías solo-Node, no las bundlea Turbopack.
+  serverExternalPackages: ['pdfjs-dist', 'mammoth', 'xlsx'],
 }
 
 export default nextConfig
