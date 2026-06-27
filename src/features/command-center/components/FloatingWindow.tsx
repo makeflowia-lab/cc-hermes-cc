@@ -1,55 +1,33 @@
 'use client'
 
-import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { X, GripHorizontal } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
 import type { FloatingWin } from '../store/command-center-store'
 
-// Contador global para traer la ventana enfocada al frente.
-let topZ = 20
+export interface WinRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
 
-/** Ventana flotante, arrastrable (DOC Módulo 1: widgets flotantes / multipantalla). */
-export function FloatingWindow({ win, index }: { win: FloatingWin; index: number }) {
+/** Ventana del mosaico: posición/tamaño los calcula WindowsLayer (tiling). Se anima al recomponerse. */
+export function FloatingWindow({ win, rect }: { win: FloatingWin; rect: WinRect }) {
   const removeWindow = useCommandCenter((s) => s.removeWindow)
-  const [pos, setPos] = useState(() => ({ x: 70 + (index % 6) * 38, y: 80 + (index % 6) * 38 }))
-  const [z, setZ] = useState(() => ++topZ)
-  const drag = useRef<{ dx: number; dy: number } | null>(null)
-
-  const bringFront = () => setZ(++topZ)
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    bringFront()
-    drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }
-    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-  }
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current) return
-    setPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy })
-  }
-  const onPointerUp = (e: React.PointerEvent) => {
-    drag.current = null
-    ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
-  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ type: 'spring', damping: 24, stiffness: 260 }}
-      className="glass glass-accent pointer-events-auto absolute flex max-h-[60vh] w-[22rem] flex-col overflow-hidden rounded-2xl shadow-panel"
-      style={{ left: pos.x, top: pos.y, zIndex: z }}
-      onMouseDown={bringFront}
+      initial={{ opacity: 0, scale: 0.96, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
+      animate={{ opacity: 1, scale: 1, x: rect.x, y: rect.y, width: rect.w, height: rect.h }}
+      exit={{ opacity: 0, scale: 0.94 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 240 }}
+      className="glass glass-accent pointer-events-auto absolute left-0 top-0 flex flex-col overflow-hidden rounded-2xl shadow-panel"
+      // Más opaca que .glass para que el texto se lea sobre el cerebro brillante.
+      style={{ background: 'linear-gradient(180deg, rgba(13,20,36,0.93), rgba(9,15,28,0.9))' }}
     >
-      {/* Barra de título (arrastrable) */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className="flex cursor-grab items-center gap-2 border-b border-hairline px-3 py-2 active:cursor-grabbing"
-      >
-        <GripHorizontal className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+      <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full accent" style={{ background: 'rgb(var(--hermes-accent))' }} />
         <span className="flex-1 truncate text-[11px] font-medium uppercase tracking-wider text-slate-200">
           {win.title}
         </span>
@@ -74,8 +52,7 @@ export function FloatingWindow({ win, index }: { win: FloatingWin; index: number
         </button>
       </div>
 
-      {/* Contenido */}
-      <div className="overflow-y-auto px-4 py-3 text-sm leading-relaxed text-slate-100">
+      <div className="flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed text-slate-100">
         {win.content ? (
           <p className="whitespace-pre-wrap">{win.content}</p>
         ) : (

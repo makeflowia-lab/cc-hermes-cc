@@ -233,8 +233,9 @@ export function CommandCenter() {
           </div>
         )}
 
-        {/* Ventanas flotantes (info bajo demanda, tantas como se pidan) */}
-        <WindowsLayer />
+        {/* Ventanas en MOSAICO sobre el cerebro (info bajo demanda). Solo en inmersivo:
+            el tablero completo ya tiene su propio flujo de conversación. */}
+        {immersive && <WindowsLayer />}
 
         {/* Overlays invocables */}
         <BriefingPanel open={briefingOpen} onClose={() => setBriefingOpen(false)} />
