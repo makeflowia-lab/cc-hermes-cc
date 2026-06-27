@@ -80,6 +80,10 @@ interface CommandCenterState {
   greeting: string
   setGreeting: (g: string) => void
 
+  // Nombre del operador (para saludar por nombre). Se guarda en el dispositivo (localStorage).
+  operatorName: string
+  setOperatorName: (n: string) => void
+
   // Ventanas flotantes (DOC Módulo 1: widgets flotantes / multipantalla). Tantas como se pidan.
   windows: FloatingWin[]
   addWindow: (w: FloatingWin) => void
@@ -169,6 +173,12 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
   setAwake: (awake) => set({ awake }),
   greeting: '',
   setGreeting: (greeting) => set({ greeting }),
+
+  operatorName: typeof window !== 'undefined' ? localStorage.getItem('hermes_operator') ?? '' : '',
+  setOperatorName: (operatorName) => {
+    if (typeof window !== 'undefined') localStorage.setItem('hermes_operator', operatorName)
+    set({ operatorName })
+  },
 
   windows: [],
   addWindow: (w) => set((s) => ({ windows: [...s.windows, w] })),

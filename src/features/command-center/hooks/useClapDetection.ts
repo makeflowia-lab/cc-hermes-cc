@@ -27,6 +27,7 @@ export function useClapDetection({
     let lastClap = 0
     let lastOnset = 0
     let armed = true
+    let removeGesture: (() => void) | null = null
 
     const THRESH = 0.25 // pico (−1..1) para considerar un aplauso
     const MIN_GAP = 130 // ms mínimo entre aplausos (debounce)
@@ -46,6 +47,19 @@ export function useClapDetection({
         if (!AC) return
         ctx = new AC()
         ctx.resume().catch(() => {})
+        // iOS/Safari: el AudioContext arranca "suspended" y SOLO se reanuda con un gesto del usuario.
+        // Sin esto, el analizador recibe silencio y nunca detecta aplausos en producción (móvil).
+        if (ctx.state !== 'running') {
+          const resume = () => ctx?.resume().catch(() => {})
+          window.addEventListener('pointerdown', resume)
+          window.addEventListener('touchstart', resume)
+          window.addEventListener('keydown', resume)
+          removeGesture = () => {
+            window.removeEventListener('pointerdown', resume)
+            window.removeEventListener('touchstart', resume)
+            window.removeEventListener('keydown', resume)
+          }
+        }
         const src = ctx.createMediaStreamSource(s)
         const analyser = ctx.createAnalyser()
         analyser.fftSize = 1024
@@ -82,6 +96,7 @@ export function useClapDetection({
 
     return () => {
       cancelled = true
+      removeGesture?.()
       cancelAnimationFrame(raf)
       stream?.getTracks().forEach((t) => t.stop())
       ctx?.close().catch(() => {})

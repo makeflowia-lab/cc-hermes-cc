@@ -282,7 +282,8 @@ export function useHermes() {
     s.setAwake(true)
     const h = new Date().getHours()
     const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
-    const greeting = `${saludo}. ¿En qué podemos ayudarte?`
+    const name = s.operatorName?.trim()
+    const greeting = name ? `${saludo}, ${name}. ¿En qué podemos ayudarte?` : `${saludo}. ¿En qué podemos ayudarte?`
     s.setGreeting(greeting)
     if (s.voiceOutput) {
       // Saluda y SOLO al terminar empieza a escuchar (startListening cancelaría el saludo si fuera antes).

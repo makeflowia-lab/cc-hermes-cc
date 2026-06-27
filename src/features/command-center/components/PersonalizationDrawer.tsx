@@ -74,7 +74,7 @@ function fileToScaledDataUri(file: File): Promise<string> {
 }
 
 export function PersonalizationDrawer() {
-  const { personalizationOpen, setPersonalizationOpen, personalization, setPersonalization } = useCommandCenter()
+  const { personalizationOpen, setPersonalizationOpen, personalization, setPersonalization, operatorName, setOperatorName } = useCommandCenter()
   const [form, setForm] = useState({
     assistantName: 'Hermes',
     orgName: '',
@@ -182,6 +182,16 @@ export function PersonalizationDrawer() {
                   value={form.assistantName}
                   onChange={(e) => setForm({ ...form, assistantName: e.target.value })}
                   placeholder="Hermes, Athena, Atlas…"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs text-slate-400">Tu nombre (para que te salude)</span>
+                <input
+                  className={field}
+                  value={operatorName}
+                  onChange={(e) => setOperatorName(e.target.value)}
+                  placeholder="Ej. Ricardo"
                 />
               </label>
 
