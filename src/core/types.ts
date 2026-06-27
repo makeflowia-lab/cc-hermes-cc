@@ -50,6 +50,7 @@ export interface Tenant {
   country: string
   countryFlag: string | null
   partyLogo: string | null
+  backgroundImage: string | null // foto/logo de fondo (URL, ruta /public o data URI); el cerebro va delante
   locale: string
   visualStyle: string
 }

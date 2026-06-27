@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, Palette } from 'lucide-react'
+import { X, Check, Palette, ImagePlus, Trash2 } from 'lucide-react'
 import { useCommandCenter } from '../store/command-center-store'
 import { useModalA11y } from '../hooks/useModalA11y'
 import { applyAccent } from '../theme'
@@ -34,6 +34,36 @@ function hexToRgb(hex: string): string | null {
   return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`
 }
 
+// Lee una imagen y la reescala (máx 1920px, JPEG q0.85) → data URI ligero para guardar en el tenant.
+function fileToScaledDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error('Imagen inválida'))
+      img.onload = () => {
+        const max = 1920
+        let { width, height } = img
+        if (width > max || height > max) {
+          const s = max / Math.max(width, height)
+          width = Math.round(width * s)
+          height = Math.round(height * s)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return reject(new Error('Canvas no disponible'))
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.85))
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 export function PersonalizationDrawer() {
   const { personalizationOpen, setPersonalizationOpen, personalization, setPersonalization } = useCommandCenter()
   const [form, setForm] = useState({
@@ -43,9 +73,11 @@ export function PersonalizationDrawer() {
     country: 'MX',
     countryFlag: '🇲🇽',
     partyLogo: '',
+    backgroundImage: '',
     visualStyle: 'political',
   })
   const [saving, setSaving] = useState(false)
+  const [bgError, setBgError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const asideRef = useRef<HTMLElement>(null)
   useModalA11y(personalizationOpen, () => setPersonalizationOpen(false), asideRef)
@@ -59,6 +91,7 @@ export function PersonalizationDrawer() {
         country: personalization.country,
         countryFlag: personalization.countryFlag ?? '🇲🇽',
         partyLogo: personalization.partyLogo ?? '',
+        backgroundImage: personalization.backgroundImage ?? '',
         visualStyle: personalization.visualStyle,
       })
     }
@@ -212,6 +245,73 @@ export function PersonalizationDrawer() {
                   placeholder="https://…/logo.png"
                 />
               </label>
+
+              {/* Imagen de fondo: cualquier foto/logo/imagen, a pantalla completa, con el cerebro delante. */}
+              <div>
+                <span className="mb-2 block text-xs text-slate-400">Imagen de fondo (el cerebro va delante)</span>
+                {form.backgroundImage ? (
+                  <div className="space-y-2">
+                    <div className="relative overflow-hidden rounded-lg border border-hairline">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.backgroundImage} alt="Vista previa del fondo" className="h-28 w-full object-cover" />
+                    </div>
+                    <div className="flex gap-2">
+                      <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-hairline bg-white/[0.03] py-2 text-xs text-slate-300 transition hover:bg-white/10">
+                        <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Cambiar
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0]
+                            if (!f) return
+                            setBgError(null)
+                            try {
+                              setForm((prev) => ({ ...prev, backgroundImage: '' }))
+                              const uri = await fileToScaledDataUri(f)
+                              setForm((prev) => ({ ...prev, backgroundImage: uri }))
+                            } catch {
+                              setBgError('No se pudo procesar la imagen.')
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, backgroundImage: '' })}
+                        className="flex items-center justify-center gap-2 rounded-lg border border-hairline bg-white/[0.03] px-3 py-2 text-xs text-slate-400 transition hover:bg-white/10 hover:text-state-crisis"
+                        title="Quitar fondo"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-hairline bg-white/[0.02] py-6 text-xs text-slate-400 transition hover:bg-white/[0.05]">
+                    <ImagePlus className="h-5 w-5 accent" aria-hidden="true" />
+                    Sube una foto, logo o imagen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0]
+                        if (!f) return
+                        setBgError(null)
+                        try {
+                          const uri = await fileToScaledDataUri(f)
+                          setForm((prev) => ({ ...prev, backgroundImage: uri }))
+                        } catch {
+                          setBgError('No se pudo procesar la imagen.')
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+                {bgError && <p className="mt-1 text-[11px] text-state-crisis">{bgError}</p>}
+              </div>
 
               <div>
                 <span className="mb-2 block text-xs text-slate-400">Estilo visual</span>

@@ -17,9 +17,12 @@ CREATE TABLE IF NOT EXISTS tenants (
   party_logo    text,                                  -- URL del logo de partido/organización
   locale        text NOT NULL DEFAULT 'es-MX',
   visual_style  text NOT NULL DEFAULT 'political',     -- political | government | corporate | military | minimal
+  background_image text,                               -- foto/logo de fondo (URL, ruta /public o data URI)
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
+-- Migración idempotente para instalaciones existentes.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS background_image text;
 
 -- ---------- CONVERSACIONES (memoria de medio plazo) ----------
 CREATE TABLE IF NOT EXISTS conversations (

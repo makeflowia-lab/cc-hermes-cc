@@ -133,6 +133,17 @@ export function CommandCenter() {
         {immersive ? (
           /* ---------------- MODO INMERSIVO: SOLO el cerebro (sin barra, sin textos) ---------------- */
           <div className="flex h-full flex-col">
+            {/* Imagen de fondo (foto/logo/bandera) a pantalla completa; el cerebro queda DELANTE. */}
+            {personalization?.backgroundImage && (
+              <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                <div
+                  className="h-full w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url("${personalization.backgroundImage}")` }}
+                />
+                {/* Velo suave para que el cerebro resalte por delante. */}
+                <div className="absolute inset-0 bg-black/25" />
+              </div>
+            )}
             {/* El cerebro llena toda la pantalla */}
             <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} fill />
 

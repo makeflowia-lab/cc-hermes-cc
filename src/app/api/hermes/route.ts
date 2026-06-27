@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       country: 'MX',
       countryFlag: '🇲🇽',
       partyLogo: null,
+      backgroundImage: null,
       locale: 'es-MX',
       visualStyle: 'political',
     }
