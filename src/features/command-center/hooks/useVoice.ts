@@ -42,6 +42,29 @@ function plainForSpeech(text: string): string {
     .trim()
 }
 
+// Pistas de género por nombre de voz del SO (las voces no exponen género de forma estándar).
+const MALE_HINTS = ['jorge', 'raul', 'raúl', 'pablo', 'diego', 'miguel', 'juan', 'carlos', 'alvaro', 'álvaro', 'male', 'hombre', 'masc']
+const FEMALE_HINTS = ['sabina', 'dalia', 'paulina', 'helena', 'laura', 'female', 'mujer', 'femen']
+
+/** Elige la mejor voz disponible: prioriza HOMBRE en es-MX, luego es-*, evitando voces femeninas. */
+function pickVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
+  if (!voices.length) return null
+  const wanted = lang.toLowerCase()
+  const esMx = voices.filter((v) => v.lang?.toLowerCase().startsWith(wanted) || v.lang?.toLowerCase().startsWith('es-mx'))
+  const es = voices.filter((v) => v.lang?.toLowerCase().startsWith('es'))
+  const isMale = (v: SpeechSynthesisVoice) => MALE_HINTS.some((h) => v.name.toLowerCase().includes(h))
+  const notFemale = (v: SpeechSynthesisVoice) => !FEMALE_HINTS.some((h) => v.name.toLowerCase().includes(h))
+  return (
+    esMx.find(isMale) ??
+    es.find(isMale) ??
+    esMx.find(notFemale) ??
+    es.find(notFemale) ??
+    esMx[0] ??
+    es[0] ??
+    null
+  )
+}
+
 export interface UseVoiceOptions {
   lang?: string
   onFinalTranscript?: (text: string) => void
@@ -60,10 +83,24 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
   onFinalRef.current = onFinalTranscript
   const onListenEndRef = useRef(onListenEnd)
   onListenEndRef.current = onListenEnd
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const audioRef = useRef<HTMLAudioElement | null>(null) // reproductor de la voz neuronal (ElevenLabs)
+  const cloudDownRef = useRef(false) // si el TTS en la nube falla, deja de intentarlo en la sesión
 
   useEffect(() => {
     setSttSupported(!!getRecognitionCtor())
     setTtsSupported(typeof window !== 'undefined' && 'speechSynthesis' in window)
+    // Las voces del SO cargan async: cachéalas y refresca al cambiar.
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const load = () => {
+        voicesRef.current = window.speechSynthesis.getVoices()
+      }
+      load()
+      window.speechSynthesis.onvoiceschanged = load
+      return () => {
+        window.speechSynthesis.onvoiceschanged = null
+      }
+    }
   }, [])
 
   const stopListening = useCallback(() => {
@@ -78,8 +115,15 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
   const startListening = useCallback(() => {
     const Ctor = getRecognitionCtor()
     if (!Ctor) return
-    // Cancela TTS para no escucharse a sí mismo.
+    // Cancela TTS para no escucharse a sí mismo (voz natural + navegador).
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+      } catch {
+        /* noop */
+      }
+    }
 
     const rec = new Ctor()
     rec.lang = lang
@@ -114,7 +158,8 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
     }
   }, [lang])
 
-  const speak = useCallback(
+  // Voz del NAVEGADOR (fallback): speechSynthesis.
+  const speakBrowser = useCallback(
     (text: string, onEnd?: () => void) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         onEnd?.()
@@ -125,13 +170,12 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
       synth.resume() // por si el motor quedó pausado/bloqueado
       const utt = new SpeechSynthesisUtterance(plainForSpeech(text))
       utt.lang = lang
-      utt.rate = 1.02
-      utt.pitch = 1
-      const voices = synth.getVoices()
-      const esVoice =
-        voices.find((v) => v.lang?.toLowerCase().startsWith('es-mx')) ??
-        voices.find((v) => v.lang?.toLowerCase().startsWith('es'))
-      if (esVoice) utt.voice = esVoice
+      // Ligeramente más lento y grave = más natural y masculino.
+      utt.rate = 0.97
+      utt.pitch = 0.92
+      const voices = voicesRef.current.length ? voicesRef.current : synth.getVoices()
+      const voice = pickVoice(voices, lang)
+      if (voice) utt.voice = voice
       let done = false
       let timer: ReturnType<typeof setTimeout> | null = null
       const finish = () => {
@@ -152,8 +196,82 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
     [lang],
   )
 
+  // Voz NATURAL (ElevenLabs vía /api/tts) con fallback a la del navegador.
+  const speak = useCallback(
+    (text: string, onEnd?: () => void) => {
+      const plain = plainForSpeech(text)
+      if (!plain) {
+        onEnd?.()
+        return
+      }
+      if (cloudDownRef.current || typeof window === 'undefined') {
+        speakBrowser(text, onEnd)
+        return
+      }
+      // Corta cualquier audio/voz previa.
+      try {
+        window.speechSynthesis?.cancel()
+      } catch {
+        /* noop */
+      }
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause()
+        } catch {
+          /* noop */
+        }
+      }
+      setSpeaking(true)
+      fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: plain }),
+      })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`tts ${r.status}`)
+          const blob = await r.blob()
+          const url = URL.createObjectURL(blob)
+          let a = audioRef.current
+          if (!a) {
+            a = new Audio()
+            audioRef.current = a
+          }
+          a.src = url
+          let done = false
+          const finish = () => {
+            if (done) return
+            done = true
+            setSpeaking(false)
+            URL.revokeObjectURL(url)
+            onEnd?.()
+          }
+          a.onended = finish
+          a.onerror = finish
+          a.play().catch(() => {
+            // Autoplay bloqueado → usa la voz del navegador (que se desbloquea con el gesto).
+            URL.revokeObjectURL(url)
+            speakBrowser(text, onEnd)
+          })
+        })
+        .catch(() => {
+          // 501 (sin key) / 502 / red → no reintentar en cada frase; usa el navegador.
+          cloudDownRef.current = true
+          speakBrowser(text, onEnd)
+        })
+    },
+    [speakBrowser],
+  )
+
   const cancelSpeak = useCallback(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      } catch {
+        /* noop */
+      }
+    }
     setSpeaking(false)
   }, [])
 
@@ -178,6 +296,15 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
       } catch {
         /* noop */
       }
+      // Desbloquea también el reproductor de la voz neuronal (ElevenLabs) con un clip silencioso.
+      try {
+        if (!audioRef.current) audioRef.current = new Audio()
+        audioRef.current.src =
+          'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+        audioRef.current.play().catch(() => {})
+      } catch {
+        /* noop */
+      }
       cleanup()
     }
     window.addEventListener('pointerdown', prime)
@@ -194,6 +321,13 @@ export function useVoice({ lang = 'es-MX', onFinalTranscript, onListenEnd }: Use
         /* noop */
       }
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause()
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [])
 
