@@ -89,7 +89,17 @@ src/
 - **Copiloto** (informe estratégico del día) que se revela al entrar.
 - **Persistencia real** en Neon (conversaciones, mensajes, memoria, eventos).
 - **White-label**: nombre del asistente, color, bandera, logo, estilo visual — sin tocar código.
-- **Interfaz cinematográfica**: orbe con estados (idle/escucha/razona/responde), fondo holográfico, modos.
+- **Experiencia inmersiva (por defecto)**: en pantalla **solo está el cerebro** (Jarvis). Todo lo demás
+  (informe, centro de datos, tablero/monitores, personalización) **se invoca por voz a través de Hermes**
+  ("muéstrame el informe", "centro de datos", "el tablero", "oculta todo"). El tablero completo está a un clic.
+- **Cerebro neuronal 3D VIVO e interactivo** (Three.js/WebGL, estilo "Z.E.R.O.") — ~3600 neuronas que pulsan en
+  GPU, ondas de energía que viajan del núcleo hacia afuera, ráfagas, sinapsis y regiones etiquetadas mapeadas
+  al Consejo. **Reacciona cuando le pides algo**: se encienden las regiones/especialistas que consulta
+  ("buscando…") y dispara una ráfaga al encontrar. Nunca estático (reduce-motion lo calma, no lo congela).
+- **Activación por 2 APLAUSOS** (Web Audio) o tap: el sistema arranca en **standby (solo el cerebro)**; al
+  **aplaudir dos veces** Hermes **enciende** el cerebro (ráfaga), **saluda por voz según la hora**
+  ("Buenos días/tardes/noches, ¿en qué podemos ayudarte?") y empieza a escuchar. Voz-primero: sin barra de
+  entrada ni textos en pantalla; los controles solo aparecen al mover el mouse.
 
 **Fase 2 — Datos + RAG (Centro de Datos):**
 - **Ingesta de documentos** — pegar texto o **subir PDF / Word (.docx) / Excel (.xlsx) / CSV / TXT** (Módulo 6); el servidor extrae el texto (pdfjs / mammoth / xlsx) → chunking → **embeddings** (`text-embedding-3-small`, 1536) → **pgvector** (índice HNSW).

@@ -1,15 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion, MotionConfig } from 'framer-motion'
-import { FileText } from 'lucide-react'
+import { MotionConfig } from 'framer-motion'
+import { Hand, Volume2, VolumeX, Maximize2, Minimize2, Settings } from 'lucide-react'
 import { useHermes } from '../hooks/useHermes'
 import { useCommandCenter } from '../store/command-center-store'
 import { applyAccent } from '../theme'
+import { cn } from '@/lib/utils'
 import type { Tenant } from '../types'
 import { AmbientBackground } from './AmbientBackground'
 import { StatusBar } from './StatusBar'
-import { HermesOrb } from './HermesOrb'
+import { BrainCenterpiece } from './BrainCenterpiece'
 import { CommandBar } from './CommandBar'
 import { ConversationStream } from './ConversationStream'
 import { CouncilIndicator } from './CouncilIndicator'
@@ -18,24 +19,31 @@ import { BriefingPanel } from './BriefingPanel'
 import { PersonalizationDrawer } from './PersonalizationDrawer'
 import { KnowledgeDrawer } from './KnowledgeDrawer'
 import { VisionPanel } from './VisionPanel'
+import { DashboardOverlay } from './DashboardOverlay'
 
 export function CommandCenter() {
   const hermes = useHermes()
-  const { setPersonalization, personalization, setBriefing, setBriefingLoading, setKnowledgeCount } =
-    useCommandCenter()
-  const [briefingOpen, setBriefingOpenState] = useState(false)
-  // Una vez que el usuario interactúa con el informe (abrir/cerrar), no se auto-revela de nuevo.
-  const briefingTouched = useRef(false)
-  const openBriefing = useCallback(() => {
-    briefingTouched.current = true
-    setBriefingOpenState(true)
-  }, [])
-  const closeBriefing = useCallback(() => {
-    briefingTouched.current = true
-    setBriefingOpenState(false)
-  }, [])
+  const {
+    setPersonalization,
+    personalization,
+    setBriefing,
+    setBriefingLoading,
+    setKnowledgeCount,
+    mode,
+    activeSpecialists,
+    immersive,
+    setImmersive,
+    setBriefingOpen,
+    briefingOpen,
+    setPersonalizationOpen,
+    voiceOutput,
+    toggleVoiceOutput,
+    clapEnabled,
+    toggleClap,
+    awake,
+  } = useCommandCenter()
 
-  // Carga la personalización del tenant y aplica el acento.
+  // Personalización + acento
   useEffect(() => {
     fetch('/api/personalization')
       .then((r) => (r.ok ? r.json() : null))
@@ -48,16 +56,7 @@ export function CommandCenter() {
       .catch(() => {})
   }, [setPersonalization])
 
-  // Conteo de la base de conocimiento (RAG / Fase 2).
-  useEffect(() => {
-    fetch('/api/knowledge')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.count && setKnowledgeCount(d.count))
-      .catch(() => {})
-  }, [setKnowledgeCount])
-
-  // Copiloto: genera el informe del día EN SEGUNDO PLANO y lo "revela" al estar listo
-  // (el momento "Buenos días, tengo preparado tu informe") sin bloquear el centro de mando.
+  // Copiloto: genera el informe del día en segundo plano (listo para cuando lo invoquen). No abre nada.
   const briefingKicked = useRef(false)
   useEffect(() => {
     if (briefingKicked.current) return
@@ -65,89 +64,150 @@ export function CommandCenter() {
     setBriefingLoading(true)
     fetch('/api/briefing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((data) => {
-        setBriefing(data)
-        // Auto-revelar solo si el usuario no empezó a conversar NI ya tocó el informe.
-        if (useCommandCenter.getState().conversationId === null && !briefingTouched.current) {
-          setBriefingOpenState(true)
-        }
-      })
+      .then((data) => setBriefing(data))
       .catch(() => setBriefing(null))
       .finally(() => setBriefingLoading(false))
   }, [setBriefing, setBriefingLoading])
 
-  const mode = useCommandCenter((s) => s.mode)
+  // Conteo de la base de conocimiento
+  useEffect(() => {
+    fetch('/api/knowledge')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.count && setKnowledgeCount(d.count))
+      .catch(() => {})
+  }, [setKnowledgeCount])
+
   const assistantName = personalization?.assistantName ?? 'Hermes'
   const busy = hermes.status === 'submitted' || hermes.status === 'streaming'
-  const hasConversation = hermes.messages.length > 0
 
-  // Layout por modo (DOC 04 §13): presentación oculta el rail; war room lo ensancha.
-  const showRail = mode !== 'presentation'
-  const gridCols =
-    mode === 'presentation'
-      ? 'lg:grid-cols-1'
-      : mode === 'war_room'
-        ? 'lg:grid-cols-[1fr_26rem]'
-        : 'lg:grid-cols-[1fr_22rem]'
+  // Los CONTROLES solo aparecen al mover el mouse (no al aplaudir/hablar). Por defecto: solo el cerebro.
+  const [chromeVisible, setChromeVisible] = useState(false)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reveal = useCallback(() => {
+    setChromeVisible(true)
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => setChromeVisible(false), 4000)
+  }, [])
+  useEffect(() => {
+    if (!immersive) return
+    const onActivity = () => reveal()
+    window.addEventListener('mousemove', onActivity)
+    window.addEventListener('keydown', onActivity)
+    return () => {
+      window.removeEventListener('mousemove', onActivity)
+      window.removeEventListener('keydown', onActivity)
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+    }
+  }, [immersive, reveal])
+
+  const iconBtn =
+    'flex h-9 w-9 items-center justify-center rounded-lg glass transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+  const commandBar = (
+    <CommandBar
+      onAsk={hermes.ask}
+      onStartListening={hermes.startListening}
+      onStopListening={hermes.stopListening}
+      onStop={hermes.stop}
+      listening={hermes.voice.listening}
+      interim={hermes.voice.interim}
+      sttSupported={hermes.voice.sttSupported}
+      busy={busy}
+      minimal={immersive}
+    />
+  )
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="relative flex h-screen flex-col overflow-hidden">
-      <AmbientBackground />
-      {/* Modo Crisis: viñeta roja perimetral (DOC 05 §11.3) */}
-      {mode === 'crisis' && (
-        <div
-          className="pointer-events-none fixed inset-0 z-20 animate-pulse"
-          style={{ boxShadow: 'inset 0 0 160px -40px rgba(244,63,94,0.55)' }}
-          aria-hidden="true"
-        />
-      )}
-      <StatusBar />
+      <div className="relative h-screen w-screen overflow-hidden">
+        <AmbientBackground />
+        {mode === 'crisis' && (
+          <div
+            className="pointer-events-none fixed inset-0 z-20 animate-pulse"
+            style={{ boxShadow: 'inset 0 0 160px -40px rgba(244,63,94,0.55)' }}
+            aria-hidden="true"
+          />
+        )}
 
-      <main className={`grid flex-1 grid-cols-1 gap-4 overflow-hidden px-4 pb-4 ${gridCols}`}>
-        {/* Columna principal: orbe + conversación + barra de comandos */}
-        <section className="flex min-h-0 flex-col">
-          <div className="flex flex-1 flex-col items-center justify-center overflow-hidden">
-            {!hasConversation ? (
-              <motion.div
-                className="flex flex-col items-center gap-6 text-center"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <HermesOrb state={hermes.hermesState} speaking={hermes.voice.speaking} />
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight text-white text-glow sm:text-3xl">
-                    {personalization?.orgName ? `${personalization.orgName}` : 'Centro de Mando'}
-                  </h1>
-                  <p className="mt-2 max-w-md text-sm text-slate-400">
-                    Sistema Operativo de Inteligencia Estratégica. Háblale o escríbele a {assistantName}:
-                    análisis, prospección y recomendaciones en tiempo real.
-                  </p>
-                </div>
+        {immersive ? (
+          /* ---------------- MODO INMERSIVO: SOLO el cerebro (sin barra, sin textos) ---------------- */
+          <div className="flex h-full flex-col">
+            {/* El cerebro llena toda la pantalla */}
+            <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} fill />
+
+            {/* Controles: SOLO al mover el mouse (no al aplaudir/hablar). Voz-primero. */}
+            <header
+              className={cn(
+                'absolute inset-x-0 top-0 z-30 flex items-center justify-end px-5 py-3 transition-opacity duration-500',
+                chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
+              )}
+            >
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={openBriefing}
-                  className="flex items-center gap-2 rounded-full glass glass-accent px-4 py-2 text-xs text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  onClick={toggleClap}
+                  className={cn(iconBtn, clapEnabled && 'glass-accent')}
+                  title={clapEnabled ? 'Activación por 2 aplausos: ON' : 'Activación por 2 aplausos: OFF'}
+                  aria-label="Activación por doble aplauso"
                 >
-                  <FileText className="h-4 w-4 accent" aria-hidden="true" />
-                  Ver informe estratégico del día
+                  <Hand className={cn('h-4 w-4', clapEnabled ? 'accent' : 'text-slate-400')} aria-hidden="true" />
                 </button>
-              </motion.div>
-            ) : (
-              <div className="flex h-full w-full max-w-3xl flex-col">
+                <button
+                  type="button"
+                  onClick={toggleVoiceOutput}
+                  className={iconBtn}
+                  title={voiceOutput ? 'Voz de Hermes: ON' : 'Voz de Hermes: OFF'}
+                  aria-label="Voz de Hermes"
+                >
+                  {voiceOutput ? <Volume2 className="h-4 w-4 accent" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-slate-500" aria-hidden="true" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersonalizationOpen(true)}
+                  className={iconBtn}
+                  title="Personalización"
+                  aria-label="Abrir personalización"
+                >
+                  <Settings className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImmersive(false)}
+                  className={iconBtn}
+                  title="Abrir tablero completo"
+                  aria-label="Abrir tablero completo"
+                >
+                  <Maximize2 className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                </button>
+              </div>
+            </header>
+
+            {/* STANDBY: SOLO el cerebro. Clic/tap o 2 aplausos activan (sin ícono ni texto). */}
+            {!awake && (
+              <button
+                type="button"
+                onClick={hermes.activate}
+                className="absolute inset-0 z-30 cursor-pointer bg-transparent"
+                aria-label="Activar Hermes (aplaude dos veces o toca la pantalla)"
+              />
+            )}
+          </div>
+        ) : (
+          /* ---------------- TABLERO COMPLETO ---------------- */
+          <div className="flex h-full flex-col">
+            <StatusBar />
+            <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden px-4 pb-4 lg:grid-cols-[1fr_22rem]">
+              <section className="flex min-h-0 flex-col">
                 <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-3">
-                    <div className="scale-50 origin-left">
-                      <HermesOrb state={hermes.hermesState} speaking={hermes.voice.speaking} />
-                    </div>
-                  </div>
+                  <BrainCenterpiece state={hermes.hermesState} activeSpecialists={activeSpecialists} compact />
                   <button
                     type="button"
-                    onClick={openBriefing}
+                    onClick={() => setImmersive(true)}
                     className="flex items-center gap-1.5 rounded-full glass px-3 py-1.5 text-[11px] text-slate-300 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    title="Volver al modo inmersivo (solo el cerebro)"
                   >
-                    <FileText className="h-3.5 w-3.5 accent" aria-hidden="true" />
-                    Informe del día
+                    <Minimize2 className="h-3.5 w-3.5 accent" aria-hidden="true" />
+                    Solo el cerebro
                   </button>
                 </div>
                 <ConversationStream
@@ -155,43 +215,30 @@ export function CommandCenter() {
                   processing={hermes.status === 'submitted'}
                   assistantName={assistantName}
                 />
-              </div>
-            )}
+                <div className="mx-auto w-full max-w-3xl pt-2">
+                  {commandBar}
+                  {hermes.error && (
+                    <p role="alert" className="mt-2 text-center text-xs text-state-crisis">
+                      {hermes.error.message || 'Ocurrió un error. Intenta de nuevo.'}
+                    </p>
+                  )}
+                </div>
+              </section>
+              <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto lg:flex">
+                <CouncilIndicator />
+                <WidgetGrid />
+              </aside>
+            </main>
           </div>
-
-          <div className="mx-auto w-full max-w-3xl pt-2">
-            <CommandBar
-              onAsk={hermes.ask}
-              onStartListening={hermes.startListening}
-              onStopListening={hermes.stopListening}
-              onStop={hermes.stop}
-              listening={hermes.voice.listening}
-              interim={hermes.voice.interim}
-              sttSupported={hermes.voice.sttSupported}
-              busy={busy}
-            />
-            {hermes.error && (
-              <p role="alert" className="mt-2 text-center text-xs text-state-crisis">
-                {hermes.error.message || 'Ocurrió un error. Intenta de nuevo.'}
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Rail derecho: consejo + monitores (oculto en móvil y en modo presentación) */}
-        {showRail && (
-          <aside className="hidden min-h-0 flex-col gap-3 overflow-y-auto lg:flex">
-            <CouncilIndicator />
-            <WidgetGrid />
-          </aside>
         )}
-      </main>
 
-      <BriefingPanel open={briefingOpen} onClose={closeBriefing} />
-      <PersonalizationDrawer />
-      <KnowledgeDrawer />
-      <VisionPanel />
-    </div>
+        {/* Overlays invocables */}
+        <BriefingPanel open={briefingOpen} onClose={() => setBriefingOpen(false)} />
+        <PersonalizationDrawer />
+        <KnowledgeDrawer />
+        <VisionPanel />
+        <DashboardOverlay />
+      </div>
     </MotionConfig>
   )
 }

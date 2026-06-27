@@ -14,6 +14,7 @@ interface CommandBarProps {
   interim: string
   sttSupported: boolean
   busy: boolean
+  minimal?: boolean
 }
 
 const SUGGESTIONS = [
@@ -32,6 +33,7 @@ export function CommandBar({
   interim,
   sttSupported,
   busy,
+  minimal = false,
 }: CommandBarProps) {
   const [input, setInput] = useState('')
   const lastTranscript = useCommandCenter((s) => s.lastTranscript)
@@ -46,20 +48,22 @@ export function CommandBar({
 
   return (
     <div className="w-full">
-      {/* Sugerencias */}
-      <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5">
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onAsk(s)}
-            disabled={busy}
-            className="rounded-full border border-hairline bg-white/[0.03] px-3 py-1 text-[11px] text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200 disabled:opacity-40"
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      {/* Sugerencias (ocultas en modo inmersivo) */}
+      {!minimal && (
+        <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onAsk(s)}
+              disabled={busy}
+              className="rounded-full border border-hairline bg-white/[0.03] px-3 py-1 text-[11px] text-slate-400 transition hover:bg-white/[0.07] hover:text-slate-200 disabled:opacity-40"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         onSubmit={submit}
@@ -114,7 +118,7 @@ export function CommandBar({
         )}
       </form>
 
-      {lastTranscript && !listening && (
+      {!minimal && lastTranscript && !listening && (
         <p className="mt-1.5 text-center text-[11px] text-slate-500">Último comando de voz: “{lastTranscript}”</p>
       )}
     </div>

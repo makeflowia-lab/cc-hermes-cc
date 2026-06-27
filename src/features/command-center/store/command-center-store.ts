@@ -55,6 +55,25 @@ interface CommandCenterState {
   // Visión (Fase 5, opt-in, off por defecto — privacidad)
   visionEnabled: boolean
   toggleVision: () => void
+
+  // Inmersivo: por defecto SOLO el cerebro en pantalla; las secciones se invocan por voz.
+  immersive: boolean
+  setImmersive: (v: boolean) => void
+  dashboardOpen: boolean // overlay con consejo + monitores (invocable)
+  setDashboardOpen: (v: boolean) => void
+  briefingOpen: boolean
+  setBriefingOpen: (v: boolean) => void
+
+  // Activación por doble aplauso
+  clapEnabled: boolean
+  toggleClap: () => void
+
+  // Standby → "se inicia con 2 aplausos". Hasta activarse, solo el cerebro en pantalla.
+  awake: boolean
+  setAwake: (v: boolean) => void
+  // Saludo de bienvenida (se muestra como subtítulo al activar)
+  greeting: string
+  setGreeting: (g: string) => void
 }
 
 export const useCommandCenter = create<CommandCenterState>((set) => ({
@@ -102,4 +121,19 @@ export const useCommandCenter = create<CommandCenterState>((set) => ({
 
   visionEnabled: false,
   toggleVision: () => set((s) => ({ visionEnabled: !s.visionEnabled })),
+
+  immersive: true,
+  setImmersive: (immersive) => set({ immersive }),
+  dashboardOpen: false,
+  setDashboardOpen: (dashboardOpen) => set({ dashboardOpen }),
+  briefingOpen: false,
+  setBriefingOpen: (briefingOpen) => set({ briefingOpen }),
+
+  clapEnabled: true,
+  toggleClap: () => set((s) => ({ clapEnabled: !s.clapEnabled })),
+
+  awake: false,
+  setAwake: (awake) => set({ awake }),
+  greeting: '',
+  setGreeting: (greeting) => set({ greeting }),
 }))

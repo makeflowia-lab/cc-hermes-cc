@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, type UIMessage } from 'ai'
 import { useCommandCenter } from '../store/command-center-store'
 import { useVoice } from './useVoice'
 import { useWakeWord } from './useWakeWord'
+import { useClapDetection } from './useClapDetection'
+import { interpretUiCommand } from '../command-router'
 import type { HermesMeta, HermesState } from '../types'
 
 export type HermesUIMessage = UIMessage<HermesMeta>
@@ -24,6 +26,7 @@ export function useHermes() {
   const setListening = useCommandCenter((s) => s.setListening)
   const setLastTranscript = useCommandCenter((s) => s.setLastTranscript)
   const wakeWordEnabled = useCommandCenter((s) => s.wakeWordEnabled)
+  const clapEnabled = useCommandCenter((s) => s.clapEnabled)
 
   const speakRef = useRef<(t: string) => void>(() => {})
   const askRef = useRef<(t: string) => void>(() => {})
@@ -59,12 +62,68 @@ export function useHermes() {
   })
   speakRef.current = voice.speak
 
+  // Ilumina las regiones/especialistas EN CUANTO llega la metadata (al iniciar el stream),
+  // no al terminar — así el cerebro reacciona mientras "busca", no después.
+  const lastMessage = chat.messages[chat.messages.length - 1]
+  const streamingMeta =
+    lastMessage?.role === 'assistant' ? (lastMessage.metadata as HermesMeta | undefined) : undefined
+  const specialistsKey = streamingMeta?.specialists?.join(',') ?? ''
+  const convKey = streamingMeta?.conversationId ?? ''
+  useEffect(() => {
+    if (!streamingMeta) return
+    setCouncil({
+      intent: streamingMeta.intent,
+      urgency: streamingMeta.urgency,
+      specialists: streamingMeta.specialists,
+      model: streamingMeta.model,
+    })
+    if (streamingMeta.conversationId) setConversationId(streamingMeta.conversationId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specialistsKey, convKey, setCouncil, setConversationId])
+
   const ask = useCallback(
     (text: string) => {
       const t = text.trim()
       if (!t) return
-      const { mode, conversationId } = useCommandCenter.getState()
-      chat.sendMessage({ text }, { body: { mode, conversationId } })
+      const s = useCommandCenter.getState()
+
+      // ¿Es un comando para invocar/ocultar secciones? Se resuelve al instante (sin LLM).
+      const routed = interpretUiCommand(t)
+      if (routed) {
+        switch (routed.cmd.kind) {
+          case 'datos':
+            s.setKnowledgeOpen(true)
+            break
+          case 'informe':
+            s.setBriefingOpen(true)
+            break
+          case 'personaliza':
+            s.setPersonalizationOpen(true)
+            break
+          case 'tablero':
+            s.setDashboardOpen(true)
+            break
+          case 'completo':
+            s.setImmersive(false)
+            break
+          case 'ocultar':
+            s.setKnowledgeOpen(false)
+            s.setPersonalizationOpen(false)
+            s.setBriefingOpen(false)
+            s.setDashboardOpen(false)
+            s.setImmersive(true)
+            break
+          case 'mode':
+            s.setMode(routed.cmd.mode)
+            s.setImmersive(false)
+            break
+        }
+        if (s.voiceOutput) speakRef.current(routed.ack)
+        return
+      }
+
+      s.setGreeting('') // el saludo cede ante la conversación real
+      chat.sendMessage({ text }, { body: { mode: s.mode, conversationId: s.conversationId } })
     },
     [chat],
   )
@@ -81,6 +140,23 @@ export function useHermes() {
     setListening(false)
   }, [voice, setListening])
 
+  // Ignición: "se inicia con 2 aplausos" (o clic). Despierta, SALUDA según la hora y escucha.
+  const activate = useCallback(() => {
+    const s = useCommandCenter.getState()
+    const wasAwake = s.awake
+    s.setAwake(true)
+    if (!wasAwake) {
+      const h = new Date().getHours()
+      const saludo = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches'
+      const greeting = `${saludo}. ¿En qué podemos ayudarte?`
+      s.setGreeting(greeting)
+      if (s.voiceOutput) speakRef.current(greeting)
+    }
+    if (!voice.listening) startListening()
+  }, [voice.listening, startListening])
+  const activateRef = useRef(activate)
+  activateRef.current = activate
+
   // Voz manos-libres: al oír "Hermes", abre la captura de comando.
   // Se pausa durante TODO el ciclo ocupado (captura, petición en vuelo y TTS) para evitar
   // que el reconocedor de wake word parpadee o escuche la propia voz de Hermes.
@@ -90,6 +166,12 @@ export function useHermes() {
     enabled: wakeWordEnabled,
     paused: busyForWake,
     onWake: startListening,
+  })
+
+  // Activación por DOBLE APLAUSO → ignición (despierta, saluda y escucha).
+  useClapDetection({
+    enabled: clapEnabled,
+    onDoubleClap: () => activateRef.current(),
   })
 
   const hermesState: HermesState = voice.listening
@@ -106,6 +188,7 @@ export function useHermes() {
     error: chat.error,
     stop: chat.stop,
     ask,
+    activate,
     hermesState,
     voice,
     startListening,
